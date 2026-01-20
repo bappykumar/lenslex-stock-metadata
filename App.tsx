@@ -29,7 +29,7 @@ const App: React.FC = () => {
       contentType: 'photo',
       groqKey: '',
       googleKey: '',
-      groqModel: 'llama-3.2-90b-vision-preview', // Default changed to 90B
+      groqModel: 'llama-3.2-90b-vision-preview', 
     };
 
     if (saved) {
@@ -44,18 +44,8 @@ const App: React.FC = () => {
     return defaultSettings;
   });
 
-  // --- FORCE MODEL CORRECTION ---
-  // If the user has the old 11b model saved in their localStorage, we must force switch it to 90b
-  useEffect(() => {
-    const validModels = ['llama-3.2-90b-vision-preview'];
-    if (!validModels.includes(settings.groqModel)) {
-        console.log("Auto-correcting decommissioned Groq model:", settings.groqModel, "to 90B");
-        setSettings(prev => ({
-            ...prev,
-            groqModel: 'llama-3.2-90b-vision-preview'
-        }));
-    }
-  }, [settings.groqModel]);
+  // AUTO-CORRECTION LOGIC REMOVED
+  // We now allow the user to type any model ID they want in the header.
 
   // Save settings to localStorage whenever they change
   useEffect(() => {

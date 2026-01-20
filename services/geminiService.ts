@@ -129,16 +129,10 @@ async function callGroq(file: UploadedFile, settings: ControlSettings): Promise<
 
   const prompt = PROMPT_TEMPLATE(settings, 'image');
   
-  // Force valid model check
-  // 11b is decommissioned, removing it from valid list logic to force 90b
-  const validModels = ['llama-3.2-90b-vision-preview'];
-  let modelToUse = settings.groqModel;
+  // NOTE: We have removed the strict "validModels" check because Groq is deprecating models rapidly.
+  // We now rely on the user provided string from the UI.
+  let modelToUse = settings.groqModel || "llama-3.2-90b-vision-preview";
   
-  if (!validModels.includes(modelToUse)) {
-      console.warn(`Invalid/Legacy model detected (${modelToUse}). Auto-switching to Llama 3.2 90B.`);
-      modelToUse = "llama-3.2-90b-vision-preview";
-  }
-
   // Debug Log
   console.log("Calling Groq API:", { model: modelToUse, mime: processedMimeType });
 

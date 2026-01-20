@@ -19,12 +19,6 @@ const Header: React.FC<HeaderProps> = ({ settings, onSettingsChange, onOpenSetti
     onSettingsChange({ ...settings, groqModel: model });
   };
 
-  // Only listing currently active and supported Groq vision models
-  // 11B is decommissioned.
-  const groqModels = [
-    { id: 'llama-3.2-90b-vision-preview', name: 'Llama 3.2 90B (Quality)' },
-  ];
-
   return (
     <header className="bg-[#0f172a]/80 backdrop-blur-md sticky top-0 z-50 border-b border-slate-800">
       <div className="max-w-7xl mx-auto flex flex-col lg:flex-row items-center justify-between px-6 py-4 gap-4">
@@ -57,15 +51,19 @@ const Header: React.FC<HeaderProps> = ({ settings, onSettingsChange, onOpenSetti
           </div>
 
           {settings.provider === 'groq' && (
-             <select 
-              value={settings.groqModel}
-              onChange={(e) => handleModelChange(e.target.value)}
-              className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-[10px] text-slate-200 outline-none focus:border-indigo-500 font-bold cursor-pointer max-w-[150px]"
-            >
-              {groqModels.map(m => (
-                <option key={m.id} value={m.id}>{m.name}</option>
-              ))}
-            </select>
+             <div className="relative group">
+                <input 
+                  list="groq-models"
+                  value={settings.groqModel}
+                  onChange={(e) => handleModelChange(e.target.value)}
+                  className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-[10px] text-slate-200 outline-none focus:border-indigo-500 font-bold w-[200px] placeholder-slate-500"
+                  placeholder="Enter Model ID..."
+                />
+                <datalist id="groq-models">
+                    <option value="llama-3.2-11b-vision-preview">Llama 3.2 11B Vision (Preview)</option>
+                    <option value="llama-3.2-90b-vision-preview">Llama 3.2 90B Vision (Preview)</option>
+                </datalist>
+             </div>
           )}
 
           {settings.provider === 'google' && (

@@ -21,10 +21,7 @@ const App: React.FC = () => {
   // Load settings from localStorage or default
   const [settings, setSettings] = useState<ControlSettings>(() => {
     const saved = localStorage.getItem('lenslex_settings');
-    if (saved) {
-      return JSON.parse(saved);
-    }
-    return {
+    const defaultSettings: ControlSettings = {
       titleLength: 120,
       keywordsCount: 46,
       provider: 'google',
@@ -34,6 +31,26 @@ const App: React.FC = () => {
       googleKey: '',
       groqModel: 'llama-3.2-11b-vision-preview',
     };
+
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        
+        // --- CRITICAL FIX: Validate Groq Model ---
+        // If the saved model is old (e.g., llava) or invalid, force update to Llama 3.2
+        const validModels = ['llama-3.2-11b-vision-preview', 'llama-3.2-90b-vision-preview'];
+        if (!validModels.includes(parsed.groqModel)) {
+            console.log("Migrating legacy model to Llama 3.2 11B");
+            parsed.groqModel = 'llama-3.2-11b-vision-preview';
+        }
+
+        return { ...defaultSettings, ...parsed };
+      } catch (e) {
+        console.error("Failed to parse settings", e);
+        return defaultSettings;
+      }
+    }
+    return defaultSettings;
   });
 
   // Save settings to localStorage whenever they change
@@ -97,12 +114,12 @@ const App: React.FC = () => {
     
     // Validate Keys before starting
     if (settings.provider === 'google' && !settings.googleKey) {
-        setIsSettingsOpen(true);
+        setIsSettingsOpen(true); // Open the popup automatically
         setError("Please enter your Gemini API Key in the settings.");
         return;
     }
     if (settings.provider === 'groq' && !settings.groqKey) {
-        setIsSettingsOpen(true);
+        setIsSettingsOpen(true); // Open the popup automatically
         setError("Please enter your Groq API Key in the settings.");
         return;
     }
@@ -271,7 +288,7 @@ const App: React.FC = () => {
             isProcessing={isProcessing}
           />
 
-          {error && <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-6 py-4 rounded-xl backdrop-blur-sm font-bold text-center">{error}</div>}
+          {error && <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-6 py-4 rounded-xl backdrop-blur-sm font-bold text-center animate-pulse">{error}</div>}
           
           <FileWorkspace 
             files={processedFiles}

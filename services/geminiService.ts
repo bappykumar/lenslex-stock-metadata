@@ -243,8 +243,15 @@ export const extractMetadataStream = async (
       },
     });
 
-    onChunk({ title: "Analyzing..." }); 
-    const finalMetadata: MetaData = JSON.parse(response.text.trim());
+    onChunk({ title: "Analyzing..." });
+    
+    // Fix: Handle undefined text response
+    const textResponse = response.text;
+    if (!textResponse) {
+        throw new Error("No response received from Gemini.");
+    }
+    
+    const finalMetadata: MetaData = JSON.parse(textResponse.trim());
     
     // Apply final sanitization (Punctuation fix)
     return sanitizeMetadata(finalMetadata, settings);

@@ -101,6 +101,9 @@ Requirements:
 `;
 };
 
+// Utility to wait
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 async function callGroq(file: UploadedFile, settings: ControlSettings): Promise<MetaData> {
   if (!settings.groqKey) throw new Error("Please provide a Groq API Key in settings.");
 
@@ -227,8 +230,7 @@ export const extractMetadataStream = async (
 
   const ai = new GoogleGenAI({ apiKey: settings.googleKey.trim() });
   
-  // Updated from gemini-1.5-flash to gemini-2.0-flash as 1.5 is encountering 404 errors with the current SDK.
-  // gemini-2.0-flash is the latest stable model for multimodal tasks.
+  // Updated to gemini-2.0-flash
   const model = 'gemini-2.0-flash'; 
   
   const imagePart = {
@@ -242,35 +244,59 @@ export const extractMetadataStream = async (
     text: PROMPT_TEMPLATE(settings, file.mimeType.startsWith('video') ? 'video frame' : 'image'),
   };
 
-  try {
-    const response = await ai.models.generateContent({
-      model: model,
-      contents: { parts: [imagePart, textPart] },
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: metadataSchema
-      },
-    });
+  let lastError: any;
+  const maxRetries = 3;
 
-    onChunk({ title: "Analyzing..." });
-    
-    const textResponse = response.text;
-    if (!textResponse) {
-        throw new Error("No response received from Gemini.");
-    }
-    
-    const finalMetadata: MetaData = JSON.parse(textResponse.trim());
-    return sanitizeMetadata(finalMetadata, settings);
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+        const response = await ai.models.generateContent({
+            model: model,
+            contents: { parts: [imagePart, textPart] },
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: metadataSchema
+            },
+        });
 
-  } catch (error: any) {
-    console.error("Error extracting metadata:", error);
-    if (error instanceof Error) {
-      if (error.message.includes('SAFETY')) throw new Error("Content blocked due to safety policies.");
-      if (error.message.includes('429')) throw new Error("Rate Limit (Busy). Please try again.");
-      if (error.message.includes('API key') || error.message.includes('403')) throw new Error("Invalid Gemini API Key.");
-      if (error.message.includes('404')) throw new Error("Model not found. Please check your API key or Region.");
-      throw new Error(`Failed: ${error.message}`);
+        onChunk({ title: "Analyzing..." });
+        
+        const textResponse = response.text;
+        if (!textResponse) {
+            throw new Error("No response received from Gemini.");
+        }
+        
+        const finalMetadata: MetaData = JSON.parse(textResponse.trim());
+        return sanitizeMetadata(finalMetadata, settings);
+
+    } catch (error: any) {
+        console.error(`Gemini Attempt ${attempt + 1} failed:`, error);
+        lastError = error;
+        
+        // Handle Rate Limits (429) or Service Overload (503)
+        const isRateLimit = error.message?.includes('429') || error.message?.includes('exhausted');
+        const isServerBusy = error.message?.includes('503') || error.message?.includes('overloaded');
+
+        if ((isRateLimit || isServerBusy) && attempt < maxRetries) {
+            // Exponential backoff: 2s, 4s, 8s
+            const delayMs = Math.pow(2, attempt + 1) * 1000;
+            onChunk({ title: `Busy (Retrying in ${delayMs/1000}s)...` });
+            await wait(delayMs);
+            continue;
+        }
+        
+        // Break loop for other errors
+        break;
     }
-    throw new Error("An unknown error occurred.");
   }
+
+  // If we exit the loop without returning, handle the last error
+  if (lastError) {
+      if (lastError.message.includes('SAFETY')) throw new Error("Content blocked due to safety policies.");
+      if (lastError.message.includes('429')) throw new Error("Rate Limit Exceeded. Please pause for a minute.");
+      if (lastError.message.includes('API key') || lastError.message.includes('403')) throw new Error("Invalid Gemini API Key.");
+      if (lastError.message.includes('404')) throw new Error("Model not found. Please check your API key or Region.");
+      throw new Error(`Failed: ${lastError.message}`);
+  }
+
+  throw new Error("An unknown error occurred.");
 };

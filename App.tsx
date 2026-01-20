@@ -95,6 +95,20 @@ const App: React.FC = () => {
     try {
       const metadata = await extractMetadataStream(fileInfo, settings, (partial) => {
         // Status updates can be handled here
+        // If the service sends a status update (like "Busy..."), we can show it briefly in the title field
+        if (partial.title) {
+            setProcessedFiles(prev => {
+                const newFiles = [...prev];
+                // Only update if we don't have final metadata yet
+                if (!newFiles[index].metadata) {
+                    newFiles[index] = {
+                        ...newFiles[index],
+                        metadata: { title: partial.title, keywords: [], category: "" }
+                    };
+                }
+                return newFiles;
+            });
+        }
       });
 
       setProcessedFiles(prev => {
@@ -136,6 +150,12 @@ const App: React.FC = () => {
         
         setCurrentlyProcessingIndex(i);
         await processSingleFile(i);
+        
+        // Add a deliberate delay between files to avoid hitting API Rate Limits (RPM)
+        // Especially important for Free Tier
+        if (i < uploadedFiles.length - 1) {
+             await new Promise(resolve => setTimeout(resolve, 2000));
+        }
     }
 
     setCurrentlyProcessingIndex(null);
@@ -150,10 +170,14 @@ const App: React.FC = () => {
       .map((file, index) => (file.error ? index : -1))
       .filter(index => index !== -1);
     
-    for (const i of failedIndices) {
+    for (let j = 0; j < failedIndices.length; j++) {
+        const i = failedIndices[j];
         setCurrentlyProcessingIndex(i);
         await processSingleFile(i);
-        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        if (j < failedIndices.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        }
     }
 
     setCurrentlyProcessingIndex(null);

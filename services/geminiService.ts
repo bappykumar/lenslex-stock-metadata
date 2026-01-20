@@ -227,8 +227,9 @@ export const extractMetadataStream = async (
 
   const ai = new GoogleGenAI({ apiKey: settings.googleKey.trim() });
   
-  // Use 'gemini-1.5-flash' as it is the stable production model and FREE tier friendly.
-  const model = 'gemini-1.5-flash'; 
+  // Updated from gemini-1.5-flash to gemini-2.0-flash as 1.5 is encountering 404 errors with the current SDK.
+  // gemini-2.0-flash is the latest stable model for multimodal tasks.
+  const model = 'gemini-2.0-flash'; 
   
   const imagePart = {
     inlineData: {
@@ -267,6 +268,7 @@ export const extractMetadataStream = async (
       if (error.message.includes('SAFETY')) throw new Error("Content blocked due to safety policies.");
       if (error.message.includes('429')) throw new Error("Rate Limit (Busy). Please try again.");
       if (error.message.includes('API key') || error.message.includes('403')) throw new Error("Invalid Gemini API Key.");
+      if (error.message.includes('404')) throw new Error("Model not found. Please check your API key or Region.");
       throw new Error(`Failed: ${error.message}`);
     }
     throw new Error("An unknown error occurred.");

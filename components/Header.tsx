@@ -70,7 +70,7 @@ const Header: React.FC<HeaderProps> = ({ settings, onSettingsChange, onOpenSetti
 
           {settings.provider === 'google' && (
              <div className="px-3 py-2 text-[10px] font-bold text-slate-500 bg-slate-800/50 border border-slate-700/50 rounded-xl select-none">
-               Model: Flash 1.5
+               Model: Flash 2.0
              </div>
           )}
           

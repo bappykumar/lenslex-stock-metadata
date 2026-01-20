@@ -24,12 +24,12 @@ const App: React.FC = () => {
     const defaultSettings: ControlSettings = {
       titleLength: 120,
       keywordsCount: 46,
-      provider: 'google',
+      provider: 'google', // Defaulting to Google as it is more stable
       marketplace: 'adobe',
       contentType: 'photo',
       groqKey: '',
       googleKey: '',
-      groqModel: 'llama-3.2-90b-vision-preview', 
+      groqModel: 'llama-3.2-11b-vision-preview', 
     };
 
     if (saved) {
@@ -44,8 +44,21 @@ const App: React.FC = () => {
     return defaultSettings;
   });
 
-  // AUTO-CORRECTION LOGIC REMOVED
-  // We now allow the user to type any model ID they want in the header.
+  // --- CRITICAL FIX FOR PERSISTENT DEPRECATED MODELS ---
+  useEffect(() => {
+    const deprecatedModels = [
+        'llama-3.2-90b-vision-preview', 
+        'llama-3.2-11b-vision-preview' // If 11b is also failing, user can manually change, but we warn/reset if stuck on 90b
+    ];
+
+    if (settings.groqModel === 'llama-3.2-90b-vision-preview') {
+        console.warn("Detected decommissioned model 90b, switching to 11b fallback.");
+        setSettings(prev => ({
+            ...prev,
+            groqModel: 'llama-3.2-11b-vision-preview'
+        }));
+    }
+  }, [settings.groqModel]);
 
   // Save settings to localStorage whenever they change
   useEffect(() => {

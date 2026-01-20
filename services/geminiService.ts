@@ -129,9 +129,8 @@ async function callGroq(file: UploadedFile, settings: ControlSettings): Promise<
 
   const prompt = PROMPT_TEMPLATE(settings, 'image');
   
-  // NOTE: We have removed the strict "validModels" check because Groq is deprecating models rapidly.
-  // We now rely on the user provided string from the UI.
-  let modelToUse = settings.groqModel || "llama-3.2-90b-vision-preview";
+  // NOTE: Rely on user input. Default to 11b if empty.
+  let modelToUse = settings.groqModel || "llama-3.2-11b-vision-preview";
   
   // Debug Log
   console.log("Calling Groq API:", { model: modelToUse, mime: processedMimeType });
@@ -222,8 +221,9 @@ export const extractMetadataStream = async (
 
   const ai = new GoogleGenAI({ apiKey: settings.googleKey.trim() });
   
-  // Use Gemini 2.0 Flash (Experimental) for best speed/vision performance currently
-  const model = 'gemini-2.0-flash-exp'; 
+  // Use 'gemini-1.5-flash' as it is the stable production model.
+  // 'gemini-2.0-flash-exp' can be used if 1.5 proves insufficient, but 1.5 is safer for general use.
+  const model = 'gemini-1.5-flash'; 
   
   const imagePart = {
     inlineData: {

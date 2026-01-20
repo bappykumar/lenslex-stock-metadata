@@ -51,7 +51,7 @@ const Header: React.FC<HeaderProps> = ({ settings, onSettingsChange, onOpenSetti
           </div>
 
           {settings.provider === 'groq' && (
-             <div className="relative group">
+             <div className="relative group flex items-center gap-1">
                 <input 
                   list="groq-models"
                   value={settings.groqModel}
@@ -59,16 +59,19 @@ const Header: React.FC<HeaderProps> = ({ settings, onSettingsChange, onOpenSetti
                   className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-[10px] text-slate-200 outline-none focus:border-indigo-500 font-bold w-[200px] placeholder-slate-500"
                   placeholder="Enter Model ID..."
                 />
+                <a href="https://console.groq.com/docs/models" target="_blank" rel="noreferrer" className="text-[9px] text-indigo-400 hover:text-indigo-300 underline" title="Check available models">
+                    ?
+                </a>
                 <datalist id="groq-models">
-                    <option value="llama-3.2-11b-vision-preview">Llama 3.2 11B Vision (Preview)</option>
-                    <option value="llama-3.2-90b-vision-preview">Llama 3.2 90B Vision (Preview)</option>
+                    <option value="llama-3.2-11b-vision-preview">Llama 3.2 11B Vision</option>
+                    <option value="llama-3.2-90b-vision-preview">Llama 3.2 90B Vision</option>
                 </datalist>
              </div>
           )}
 
           {settings.provider === 'google' && (
              <div className="px-3 py-2 text-[10px] font-bold text-slate-500 bg-slate-800/50 border border-slate-700/50 rounded-xl select-none">
-               Model: Flash 2.0
+               Model: Flash 1.5
              </div>
           )}
           

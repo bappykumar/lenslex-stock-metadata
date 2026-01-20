@@ -1,17 +1,7 @@
 
-import React, { useEffect, useState } from 'react';
-import { DXMetaDataLogoIcon, SettingsIcon } from './icons/Icons';
+import React from 'react';
+import { DXMetaDataLogoIcon } from './icons/Icons';
 import { ControlSettings, APIProvider } from '../types';
-
-declare global {
-  interface AIStudio {
-    hasSelectedApiKey: () => Promise<boolean>;
-    openSelectKey: () => Promise<void>;
-  }
-  interface Window {
-    aistudio?: AIStudio;
-  }
-}
 
 interface HeaderProps {
   settings: ControlSettings;
@@ -19,27 +9,6 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ settings, onSettingsChange }) => {
-  const [hasKey, setHasKey] = useState(false);
-
-  const checkKey = async () => {
-    if (window.aistudio) {
-      const selected = await window.aistudio.hasSelectedApiKey();
-      setHasKey(selected);
-    }
-  };
-
-  useEffect(() => {
-    checkKey();
-    const interval = setInterval(checkKey, 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleOpenKey = async () => {
-    if (window.aistudio) {
-      await window.aistudio.openSelectKey();
-      setHasKey(true);
-    }
-  };
 
   const handleProviderChange = (provider: APIProvider) => {
     onSettingsChange({ ...settings, provider });
@@ -87,7 +56,7 @@ const Header: React.FC<HeaderProps> = ({ settings, onSettingsChange }) => {
           </div>
 
           {settings.provider === 'groq' && (
-            <div className="flex flex-wrap items-center justify-center gap-2">
+            <div className="flex flex-wrap items-center justify-center gap-2 animate-fadeIn">
                <select 
                 value={settings.groqModel}
                 onChange={(e) => handleModelChange(e.target.value)}
@@ -99,22 +68,27 @@ const Header: React.FC<HeaderProps> = ({ settings, onSettingsChange }) => {
               </select>
               <input 
                 type="password"
-                placeholder="Paste Groq Key"
+                placeholder="Paste Groq API Key"
                 value={settings.groqKey || ''}
                 onChange={(e) => onSettingsChange({ ...settings, groqKey: e.target.value })}
-                className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-[10px] text-slate-200 outline-none focus:border-indigo-500 w-32 sm:w-48"
+                className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-[10px] text-slate-200 outline-none focus:border-indigo-500 w-32 sm:w-48 placeholder:text-slate-600 font-mono"
               />
             </div>
           )}
 
           {settings.provider === 'google' && (
-            <button 
-              onClick={handleOpenKey}
-              className={`flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-all text-[10px] font-bold ${hasKey ? 'text-emerald-400' : 'text-amber-400'}`}
-            >
-              <div className={`w-1.5 h-1.5 rounded-full ${hasKey ? 'bg-emerald-500' : 'bg-amber-500 animate-pulse'}`}></div>
-              {hasKey ? 'GEMINI READY' : 'SETUP GEMINI'}
-            </button>
+            <div className="flex flex-wrap items-center justify-center gap-2 animate-fadeIn">
+               <div className="px-3 py-2 text-[10px] font-bold text-slate-500 bg-slate-800/50 border border-slate-700/50 rounded-xl select-none">
+                 Model: Flash 2.0
+               </div>
+               <input 
+                type="password"
+                placeholder="Paste Gemini API Key"
+                value={settings.googleKey || ''}
+                onChange={(e) => onSettingsChange({ ...settings, googleKey: e.target.value })}
+                className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-[10px] text-slate-200 outline-none focus:border-indigo-500 w-32 sm:w-48 placeholder:text-slate-600 font-mono"
+              />
+            </div>
           )}
         </div>
       </div>

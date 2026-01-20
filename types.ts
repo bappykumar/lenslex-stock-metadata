@@ -32,5 +32,6 @@ export interface ControlSettings {
     marketplace: Marketplace;
     contentType: ContentType;
     groqKey?: string;
+    googleKey?: string;
     groqModel: string;
 }

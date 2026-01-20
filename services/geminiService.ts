@@ -1,6 +1,7 @@
 
-import { GoogleGenAI, Type, GenerateContentResponse } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { UploadedFile, MetaData, ControlSettings } from '../types';
+import { compressImage } from '../utils/fileUtils';
 
 // Adobe Stock OFFICIAL Categories (Updated based on user screenshots)
 export const ADOBE_CATEGORIES = [
@@ -111,8 +112,22 @@ IMPORTANT: You must return ONLY a valid JSON object following this schema:
 async function callGroq(file: UploadedFile, settings: ControlSettings): Promise<MetaData> {
   if (!settings.groqKey) throw new Error("Please provide a Groq API Key in settings.");
 
-  const prompt = PROMPT_TEMPLATE(settings, file.mimeType.startsWith('video') ? 'video frame' : 'image');
+  // Resize/Compress image for Groq to prevent "Entity Too Large" errors
+  // Groq/Llama Vision works best with images < 4MB and standard resolutions (e.g. 1024px)
+  let processedBase64 = file.base64;
+  let processedMimeType = file.mimeType;
 
+  if (file.mimeType.startsWith('image/')) {
+      try {
+          const compressed = await compressImage(file.file, 1024, 0.7);
+          processedBase64 = compressed.base64;
+          processedMimeType = compressed.mimeType;
+      } catch (err) {
+          console.warn("Image compression failed, falling back to original:", err);
+      }
+  }
+
+  const prompt = PROMPT_TEMPLATE(settings, file.mimeType.startsWith('video') ? 'video frame' : 'image');
   const modelToUse = settings.groqModel || "llama-3.2-11b-vision-preview";
 
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -131,7 +146,7 @@ async function callGroq(file: UploadedFile, settings: ControlSettings): Promise<
             {
               type: "image_url",
               image_url: {
-                url: `data:${file.mimeType};base64,${file.base64}`
+                url: `data:${processedMimeType};base64,${processedBase64}`
               }
             }
           ]
@@ -197,9 +212,15 @@ export const extractMetadataStream = async (
     return await callGroq(file, settings);
   }
 
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  // --- GOOGLE GEMINI LOGIC ---
+  
+  if (!settings.googleKey) {
+      throw new Error("Missing Gemini API Key. Please enter it in the header.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey: settings.googleKey });
   // Using the Flash model which is faster and more cost-effective for high volume
-  const model = 'gemini-3-flash-preview'; 
+  const model = 'gemini-2.0-flash-exp'; 
   
   const imagePart = {
     inlineData: {
@@ -213,7 +234,6 @@ export const extractMetadataStream = async (
   };
 
   try {
-    // Removed auto-retry logic. User wants to see failures and retry manually.
     const response = await ai.models.generateContent({
       model: model,
       contents: { parts: [imagePart, textPart] },
@@ -232,19 +252,15 @@ export const extractMetadataStream = async (
   } catch (error: any) {
     console.error("Error extracting metadata:", error);
     
-    if (error.message && (error.message.includes('Requested entity was not found') || error.message.includes('API key'))) {
-      if (window.aistudio) {
-        await window.aistudio.openSelectKey();
-      }
-      throw new Error("API Key issue detected. Please check your Gemini API key selection.");
-    }
-
     if (error instanceof Error) {
       if (error.message.includes('SAFETY')) {
         throw new Error("Content blocked due to safety policies.");
       }
       if (error.message.includes('429') || error.message.includes('exhausted')) {
-          throw new Error("Rate Limit (Busy). Please click Retry.");
+          throw new Error("Rate Limit (Busy). Please try again or use a paid key.");
+      }
+      if (error.message.includes('API key') || error.message.includes('403')) {
+          throw new Error("Invalid API Key. Please check the key in header.");
       }
       throw new Error(`Failed: ${error.message}`);
     }

@@ -1,11 +1,11 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import ControlsPanel from './components/ControlsPanel';
 import StatusDashboard from './components/StatusDashboard';
 import FileWorkspace from './components/FileWorkspace';
-import { UploadedFile, FileWithMetadata, ControlSettings, MetaData, Marketplace } from './types';
+import { UploadedFile, FileWithMetadata, ControlSettings } from './types';
 import { fileToBase64 } from './utils/fileUtils';
 import { extractMetadataStream } from './services/geminiService';
 
@@ -15,15 +15,29 @@ const App: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentlyProcessingIndex, setCurrentlyProcessingIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [settings, setSettings] = useState<ControlSettings>({
-    titleLength: 120, // UPDATED: 120 is the safe sweet spot for both Adobe & Freepik
-    keywordsCount: 46,
-    provider: 'google',
-    marketplace: 'adobe',
-    contentType: 'photo',
-    groqKey: '',
-    groqModel: 'llama-3.2-11b-vision-preview',
+
+  // Load settings from localStorage or default
+  const [settings, setSettings] = useState<ControlSettings>(() => {
+    const saved = localStorage.getItem('lenslex_settings');
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    return {
+      titleLength: 120,
+      keywordsCount: 46,
+      provider: 'google',
+      marketplace: 'adobe',
+      contentType: 'photo',
+      groqKey: '',
+      googleKey: '',
+      groqModel: 'llama-3.2-11b-vision-preview',
+    };
   });
+
+  // Save settings to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem('lenslex_settings', JSON.stringify(settings));
+  }, [settings]);
 
   const handleFileSelect = async (files: File[]) => {
     setError(null);
@@ -78,6 +92,17 @@ const App: React.FC = () => {
 
   const handleProcessFiles = async () => {
     if (uploadedFiles.length === 0) return;
+    
+    // Validate Keys before starting
+    if (settings.provider === 'google' && !settings.googleKey) {
+        setError("Please enter your Gemini API Key in the top header settings.");
+        return;
+    }
+    if (settings.provider === 'groq' && !settings.groqKey) {
+        setError("Please enter your Groq API Key in the top header settings.");
+        return;
+    }
+
     setIsProcessing(true);
     setError(null);
     
@@ -230,7 +255,7 @@ const App: React.FC = () => {
             isProcessing={isProcessing}
           />
 
-          {error && <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-6 py-4 rounded-xl backdrop-blur-sm">{error}</div>}
+          {error && <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-6 py-4 rounded-xl backdrop-blur-sm font-bold text-center">{error}</div>}
           
           <FileWorkspace 
             files={processedFiles}

@@ -40,7 +40,7 @@ const Header: React.FC<HeaderProps> = ({ settings, onSettingsChange, onOpenSetti
               onClick={() => handleProviderChange('google')}
               className={`px-4 py-1.5 text-[10px] font-bold rounded-lg transition-all ${settings.provider === 'google' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-400 hover:text-slate-200'}`}
             >
-              GEMINI
+              GEMINI (FREE)
             </button>
             <button 
               onClick={() => handleProviderChange('groq')}
@@ -64,7 +64,6 @@ const Header: React.FC<HeaderProps> = ({ settings, onSettingsChange, onOpenSetti
                 </a>
                 <datalist id="groq-models">
                     <option value="llama-3.2-11b-vision-preview">Llama 3.2 11B Vision</option>
-                    <option value="llama-3.2-90b-vision-preview">Llama 3.2 90B Vision</option>
                 </datalist>
              </div>
           )}

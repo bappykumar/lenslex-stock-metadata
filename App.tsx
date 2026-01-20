@@ -24,7 +24,7 @@ const App: React.FC = () => {
     const defaultSettings: ControlSettings = {
       titleLength: 120,
       keywordsCount: 46,
-      provider: 'google', // Defaulting to Google as it is more stable
+      provider: 'google', // Default to Google as it is the most stable free option
       marketplace: 'adobe',
       contentType: 'photo',
       groqKey: '',
@@ -35,6 +35,18 @@ const App: React.FC = () => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
+        
+        // RECOVERY FIX:
+        // If the user was using Groq (which is broken/retired), force switch them to Google Gemini
+        if (parsed.provider === 'groq') {
+            parsed.provider = 'google';
+        }
+
+        // Fix decommissioned Groq models if they are still selected
+        if (parsed.groqModel === 'llama-3.2-90b-vision-preview') {
+            parsed.groqModel = 'llama-3.2-11b-vision-preview';
+        }
+        
         return { ...defaultSettings, ...parsed };
       } catch (e) {
         console.error("Failed to parse settings", e);
@@ -43,22 +55,6 @@ const App: React.FC = () => {
     }
     return defaultSettings;
   });
-
-  // --- CRITICAL FIX FOR PERSISTENT DEPRECATED MODELS ---
-  useEffect(() => {
-    const deprecatedModels = [
-        'llama-3.2-90b-vision-preview', 
-        'llama-3.2-11b-vision-preview' // If 11b is also failing, user can manually change, but we warn/reset if stuck on 90b
-    ];
-
-    if (settings.groqModel === 'llama-3.2-90b-vision-preview') {
-        console.warn("Detected decommissioned model 90b, switching to 11b fallback.");
-        setSettings(prev => ({
-            ...prev,
-            groqModel: 'llama-3.2-11b-vision-preview'
-        }));
-    }
-  }, [settings.groqModel]);
 
   // Save settings to localStorage whenever they change
   useEffect(() => {

@@ -167,7 +167,13 @@ async function callGroq(file: UploadedFile, settings: ControlSettings): Promise<
         const errData = await response.json();
         console.error("Groq API Full Error:", errData);
         msg = errData.error?.message || msg;
+        
+        // Show the actual error to the user so they see the recommendation from Groq
+        if (JSON.stringify(errData).includes('decommissioned') || msg.includes('decommissioned')) {
+             throw new Error(`Groq Error: ${msg} (We recommend using Gemini Free)`);
+        }
     } catch(e) {
+        if (e instanceof Error && e.message.includes('Groq Error')) throw e;
         console.error("Groq API Non-JSON Error:", e);
     }
     
@@ -221,8 +227,7 @@ export const extractMetadataStream = async (
 
   const ai = new GoogleGenAI({ apiKey: settings.googleKey.trim() });
   
-  // Use 'gemini-1.5-flash' as it is the stable production model.
-  // 'gemini-2.0-flash-exp' can be used if 1.5 proves insufficient, but 1.5 is safer for general use.
+  // Use 'gemini-1.5-flash' as it is the stable production model and FREE tier friendly.
   const model = 'gemini-1.5-flash'; 
   
   const imagePart = {

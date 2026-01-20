@@ -20,8 +20,8 @@ const Header: React.FC<HeaderProps> = ({ settings, onSettingsChange, onOpenSetti
   };
 
   // Only listing currently active and supported Groq vision models
+  // 11B is decommissioned.
   const groqModels = [
-    { id: 'llama-3.2-11b-vision-preview', name: 'Llama 3.2 11B (Fast)' },
     { id: 'llama-3.2-90b-vision-preview', name: 'Llama 3.2 90B (Quality)' },
   ];
 

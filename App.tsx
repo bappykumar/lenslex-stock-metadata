@@ -29,7 +29,7 @@ const App: React.FC = () => {
       contentType: 'photo',
       groqKey: '',
       googleKey: '',
-      groqModel: 'llama-3.2-11b-vision-preview',
+      groqModel: 'llama-3.2-90b-vision-preview', // Default changed to 90B
     };
 
     if (saved) {
@@ -45,13 +45,14 @@ const App: React.FC = () => {
   });
 
   // --- FORCE MODEL CORRECTION ---
+  // If the user has the old 11b model saved in their localStorage, we must force switch it to 90b
   useEffect(() => {
-    const validModels = ['llama-3.2-11b-vision-preview', 'llama-3.2-90b-vision-preview'];
+    const validModels = ['llama-3.2-90b-vision-preview'];
     if (!validModels.includes(settings.groqModel)) {
-        console.log("Auto-correcting invalid Groq model:", settings.groqModel);
+        console.log("Auto-correcting decommissioned Groq model:", settings.groqModel, "to 90B");
         setSettings(prev => ({
             ...prev,
-            groqModel: 'llama-3.2-11b-vision-preview'
+            groqModel: 'llama-3.2-90b-vision-preview'
         }));
     }
   }, [settings.groqModel]);

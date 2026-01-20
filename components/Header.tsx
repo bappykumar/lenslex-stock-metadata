@@ -1,14 +1,15 @@
 
 import React from 'react';
-import { DXMetaDataLogoIcon } from './icons/Icons';
+import { DXMetaDataLogoIcon, SettingsIcon } from './icons/Icons';
 import { ControlSettings, APIProvider } from '../types';
 
 interface HeaderProps {
   settings: ControlSettings;
   onSettingsChange: (settings: ControlSettings) => void;
+  onOpenSettings: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ settings, onSettingsChange }) => {
+const Header: React.FC<HeaderProps> = ({ settings, onSettingsChange, onOpenSettings }) => {
 
   const handleProviderChange = (provider: APIProvider) => {
     onSettingsChange({ ...settings, provider });
@@ -19,9 +20,10 @@ const Header: React.FC<HeaderProps> = ({ settings, onSettingsChange }) => {
   };
 
   // Only listing currently active and supported Groq vision models
+  // LLaVA is deprecated/unstable on Groq, using Llama 3.2 series instead
   const groqModels = [
-    { id: 'llama-3.2-11b-vision-preview', name: 'Llama 3.2 11B (Recommended)' },
-    { id: 'llava-v1.5-7b-4096-preview', name: 'Llava v1.5 7B' },
+    { id: 'llama-3.2-11b-vision-preview', name: 'Llama 3.2 11B (Fast)' },
+    { id: 'llama-3.2-90b-vision-preview', name: 'Llama 3.2 90B (Quality)' },
   ];
 
   return (
@@ -45,7 +47,7 @@ const Header: React.FC<HeaderProps> = ({ settings, onSettingsChange }) => {
               onClick={() => handleProviderChange('google')}
               className={`px-4 py-1.5 text-[10px] font-bold rounded-lg transition-all ${settings.provider === 'google' ? 'bg-indigo-600 text-white shadow-lg shadow-indigo-500/20' : 'text-slate-400 hover:text-slate-200'}`}
             >
-              GEMINI FLASH
+              GEMINI
             </button>
             <button 
               onClick={() => handleProviderChange('groq')}
@@ -56,40 +58,30 @@ const Header: React.FC<HeaderProps> = ({ settings, onSettingsChange }) => {
           </div>
 
           {settings.provider === 'groq' && (
-            <div className="flex flex-wrap items-center justify-center gap-2 animate-fadeIn">
-               <select 
-                value={settings.groqModel}
-                onChange={(e) => handleModelChange(e.target.value)}
-                className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-[10px] text-slate-200 outline-none focus:border-indigo-500 font-bold cursor-pointer"
-              >
-                {groqModels.map(m => (
-                  <option key={m.id} value={m.id}>{m.name}</option>
-                ))}
-              </select>
-              <input 
-                type="password"
-                placeholder="Paste Groq API Key"
-                value={settings.groqKey || ''}
-                onChange={(e) => onSettingsChange({ ...settings, groqKey: e.target.value })}
-                className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-[10px] text-slate-200 outline-none focus:border-indigo-500 w-32 sm:w-48 placeholder:text-slate-600 font-mono"
-              />
-            </div>
+             <select 
+              value={settings.groqModel}
+              onChange={(e) => handleModelChange(e.target.value)}
+              className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-[10px] text-slate-200 outline-none focus:border-indigo-500 font-bold cursor-pointer max-w-[150px]"
+            >
+              {groqModels.map(m => (
+                <option key={m.id} value={m.id}>{m.name}</option>
+              ))}
+            </select>
           )}
 
           {settings.provider === 'google' && (
-            <div className="flex flex-wrap items-center justify-center gap-2 animate-fadeIn">
-               <div className="px-3 py-2 text-[10px] font-bold text-slate-500 bg-slate-800/50 border border-slate-700/50 rounded-xl select-none">
-                 Model: Flash 2.0
-               </div>
-               <input 
-                type="password"
-                placeholder="Paste Gemini API Key"
-                value={settings.googleKey || ''}
-                onChange={(e) => onSettingsChange({ ...settings, googleKey: e.target.value })}
-                className="bg-slate-800 border border-slate-700 rounded-xl px-3 py-2 text-[10px] text-slate-200 outline-none focus:border-indigo-500 w-32 sm:w-48 placeholder:text-slate-600 font-mono"
-              />
-            </div>
+             <div className="px-3 py-2 text-[10px] font-bold text-slate-500 bg-slate-800/50 border border-slate-700/50 rounded-xl select-none">
+               Model: Flash 2.0
+             </div>
           )}
+          
+          <button 
+            onClick={onOpenSettings}
+            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-all text-xs font-bold text-slate-300 hover:text-white uppercase tracking-wider group"
+          >
+            <SettingsIcon className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
+            <span className="hidden sm:inline">API Keys</span>
+          </button>
         </div>
       </div>
       <div className="h-0.5 bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent"></div>

@@ -5,6 +5,7 @@ import Footer from './components/Footer';
 import ControlsPanel from './components/ControlsPanel';
 import StatusDashboard from './components/StatusDashboard';
 import FileWorkspace from './components/FileWorkspace';
+import ApiKeyModal from './components/ApiKeyModal';
 import { UploadedFile, FileWithMetadata, ControlSettings } from './types';
 import { fileToBase64 } from './utils/fileUtils';
 import { extractMetadataStream } from './services/geminiService';
@@ -15,6 +16,7 @@ const App: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentlyProcessingIndex, setCurrentlyProcessingIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Load settings from localStorage or default
   const [settings, setSettings] = useState<ControlSettings>(() => {
@@ -95,11 +97,13 @@ const App: React.FC = () => {
     
     // Validate Keys before starting
     if (settings.provider === 'google' && !settings.googleKey) {
-        setError("Please enter your Gemini API Key in the top header settings.");
+        setIsSettingsOpen(true);
+        setError("Please enter your Gemini API Key in the settings.");
         return;
     }
     if (settings.provider === 'groq' && !settings.groqKey) {
-        setError("Please enter your Groq API Key in the top header settings.");
+        setIsSettingsOpen(true);
+        setError("Please enter your Groq API Key in the settings.");
         return;
     }
 
@@ -231,7 +235,19 @@ const App: React.FC = () => {
   
   return (
     <div className="flex flex-col min-h-screen bg-[#0f172a] text-slate-200">
-      <Header settings={settings} onSettingsChange={setSettings} />
+      <Header 
+        settings={settings} 
+        onSettingsChange={setSettings} 
+        onOpenSettings={() => setIsSettingsOpen(true)}
+      />
+      
+      <ApiKeyModal 
+        isOpen={isSettingsOpen} 
+        onClose={() => setIsSettingsOpen(false)}
+        settings={settings}
+        onSettingsChange={setSettings}
+      />
+
       <main className="flex-grow container mx-auto p-4 md:p-10 max-w-7xl">
         <div className="space-y-8">
           <ControlsPanel

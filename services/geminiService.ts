@@ -112,6 +112,11 @@ async function callGroq(file: UploadedFile, settings: ControlSettings): Promise<
   let processedBase64 = file.base64;
   let processedMimeType = file.mimeType;
 
+  // FALLBACK: Ensure MIME type is never empty
+  if (!processedMimeType || processedMimeType === 'undefined') {
+      processedMimeType = 'image/jpeg';
+  }
+
   if (file.mimeType.startsWith('image/')) {
       try {
           const compressed = await compressImage(file.file, 1024, 0.7);
@@ -133,8 +138,9 @@ async function callGroq(file: UploadedFile, settings: ControlSettings): Promise<
       modelToUse = "llama-3.2-11b-vision-preview";
   }
 
-  // NOTE: Llama 3.2 Vision on Groq does NOT currently support "response_format: { type: 'json_object' }"
-  // We must rely on prompt engineering for JSON output.
+  // Debug Log
+  console.log("Calling Groq API:", { model: modelToUse, mime: processedMimeType });
+
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -158,24 +164,21 @@ async function callGroq(file: UploadedFile, settings: ControlSettings): Promise<
         }
       ],
       temperature: 0.2,
-      // response_format removed to prevent 400 errors
     })
   });
 
   if (!response.ok) {
-    const errData = await response.json();
-    const msg = errData.error?.message || response.statusText;
-    
-    // Improved Error Handling
-    if (msg.toLowerCase().includes("decommissioned") || msg.toLowerCase().includes("not found")) {
-        // Only suggest switching if we are on a weird model
-        if (modelToUse !== 'llama-3.2-11b-vision-preview' && modelToUse !== 'llama-3.2-90b-vision-preview') {
-             throw new Error(`Model Error: Please switch to "Llama 3.2 11B" in the header.`);
-        }
-        // Otherwise it's likely a Key issue or generic 404
-        throw new Error(`Groq Error: Resource not found. Please check your API Key.`);
+    let msg = response.statusText;
+    try {
+        const errData = await response.json();
+        console.error("Groq API Full Error:", errData);
+        msg = errData.error?.message || msg;
+    } catch(e) {
+        console.error("Groq API Non-JSON Error:", e);
     }
-    throw new Error(`Groq API Error: ${msg}`);
+    
+    // Direct Error Reporting - No Masking
+    throw new Error(`Groq API: ${msg}`);
   }
 
   const result = await response.json();

@@ -1,15 +1,14 @@
 
 import React from 'react';
-import { DXMetaDataLogoIcon, SettingsIcon } from './icons/Icons';
+import { DXMetaDataLogoIcon } from './icons/Icons';
 import { ControlSettings, APIProvider } from '../types';
 
 interface HeaderProps {
   settings: ControlSettings;
   onSettingsChange: (settings: ControlSettings) => void;
-  onOpenSettings: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ settings, onSettingsChange, onOpenSettings }) => {
+const Header: React.FC<HeaderProps> = ({ settings, onSettingsChange }) => {
 
   const handleProviderChange = (provider: APIProvider) => {
     onSettingsChange({ ...settings, provider });
@@ -73,14 +72,6 @@ const Header: React.FC<HeaderProps> = ({ settings, onSettingsChange, onOpenSetti
                Model: Flash 2.0
              </div>
           )}
-          
-          <button 
-            onClick={onOpenSettings}
-            className="flex items-center gap-2 px-5 py-2 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white border border-indigo-500/30 rounded-xl transition-all text-xs font-bold text-indigo-400 uppercase tracking-wider group shadow-lg shadow-indigo-500/10"
-          >
-            <SettingsIcon className="w-4 h-4" />
-            <span>SET API KEYS</span>
-          </button>
         </div>
       </div>
       <div className="h-0.5 bg-gradient-to-r from-transparent via-indigo-500/50 to-transparent"></div>

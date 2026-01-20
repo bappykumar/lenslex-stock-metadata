@@ -5,7 +5,6 @@ import Footer from './components/Footer';
 import ControlsPanel from './components/ControlsPanel';
 import StatusDashboard from './components/StatusDashboard';
 import FileWorkspace from './components/FileWorkspace';
-import ApiKeyModal from './components/ApiKeyModal';
 import { UploadedFile, FileWithMetadata, ControlSettings } from './types';
 import { fileToBase64 } from './utils/fileUtils';
 import { extractMetadataStream } from './services/geminiService';
@@ -16,7 +15,6 @@ const App: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [currentlyProcessingIndex, setCurrentlyProcessingIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Load settings from localStorage or default
   const [settings, setSettings] = useState<ControlSettings>(() => {
@@ -27,8 +25,6 @@ const App: React.FC = () => {
       provider: 'google', // Default to Google as it is the most stable free option
       marketplace: 'adobe',
       contentType: 'photo',
-      groqKey: '',
-      googleKey: '',
       groqModel: 'llama-3.2-11b-vision-preview', 
     };
 
@@ -95,7 +91,6 @@ const App: React.FC = () => {
     try {
       const metadata = await extractMetadataStream(fileInfo, settings, (partial) => {
         // Status updates can be handled here
-        // If the service sends a status update (like "Busy..."), we can show it briefly in the title field
         if (partial.title) {
             setProcessedFiles(prev => {
                 const newFiles = [...prev];
@@ -129,18 +124,6 @@ const App: React.FC = () => {
   const handleProcessFiles = async () => {
     if (uploadedFiles.length === 0) return;
     
-    // Validate Keys before starting (Checking trimmed values)
-    if (settings.provider === 'google' && !settings.googleKey?.trim()) {
-        setIsSettingsOpen(true);
-        setError("Please enter your Gemini API Key in the settings.");
-        return;
-    }
-    if (settings.provider === 'groq' && !settings.groqKey?.trim()) {
-        setIsSettingsOpen(true);
-        setError("Please enter your Groq API Key in the settings.");
-        return;
-    }
-
     setIsProcessing(true);
     setError(null);
     
@@ -152,7 +135,6 @@ const App: React.FC = () => {
         await processSingleFile(i);
         
         // Add a deliberate delay between files to avoid hitting API Rate Limits (RPM)
-        // Especially important for Free Tier
         if (i < uploadedFiles.length - 1) {
              await new Promise(resolve => setTimeout(resolve, 2000));
         }
@@ -274,16 +256,8 @@ const App: React.FC = () => {
       <Header 
         settings={settings} 
         onSettingsChange={setSettings} 
-        onOpenSettings={() => setIsSettingsOpen(true)}
       />
       
-      <ApiKeyModal 
-        isOpen={isSettingsOpen} 
-        onClose={() => setIsSettingsOpen(false)}
-        settings={settings}
-        onSettingsChange={setSettings}
-      />
-
       <main className="flex-grow container mx-auto p-4 md:p-10 max-w-7xl">
         <div className="space-y-8">
           <ControlsPanel

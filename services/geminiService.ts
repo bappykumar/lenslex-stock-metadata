@@ -105,7 +105,12 @@ Requirements:
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 async function callGroq(file: UploadedFile, settings: ControlSettings): Promise<MetaData> {
-  if (!settings.groqKey) throw new Error("Please provide a Groq API Key in settings.");
+  // Assuming environment variable for Groq if provider is selected
+  // Note: This logic path is now less prioritized as user requested "remove api system"
+  // but kept for compatibility if env var is present.
+  const groqKey = process.env.GROQ_API_KEY || ""; 
+  
+  if (!groqKey) throw new Error("Groq API Key not found in environment.");
 
   // Groq Llama 3.2 Vision does not support video files directly
   if (file.mimeType.startsWith('video')) {
@@ -141,7 +146,7 @@ async function callGroq(file: UploadedFile, settings: ControlSettings): Promise<
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${settings.groqKey.trim()}`,
+      "Authorization": `Bearer ${groqKey.trim()}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
@@ -224,11 +229,7 @@ export const extractMetadataStream = async (
   }
 
   // --- GOOGLE GEMINI LOGIC ---
-  if (!settings.googleKey) {
-      throw new Error("Missing Gemini API Key. Please enter it in the header.");
-  }
-
-  const ai = new GoogleGenAI({ apiKey: settings.googleKey.trim() });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   // Updated to gemini-2.0-flash
   const model = 'gemini-2.0-flash'; 
@@ -293,7 +294,7 @@ export const extractMetadataStream = async (
   if (lastError) {
       if (lastError.message.includes('SAFETY')) throw new Error("Content blocked due to safety policies.");
       if (lastError.message.includes('429')) throw new Error("Rate Limit Exceeded. Please pause for a minute.");
-      if (lastError.message.includes('API key') || lastError.message.includes('403')) throw new Error("Invalid Gemini API Key.");
+      if (lastError.message.includes('API key') || lastError.message.includes('403')) throw new Error("Invalid Gemini API Key in Environment.");
       if (lastError.message.includes('404')) throw new Error("Model not found. Please check your API key or Region.");
       throw new Error(`Failed: ${lastError.message}`);
   }

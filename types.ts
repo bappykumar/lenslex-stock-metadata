@@ -31,7 +31,5 @@ export interface ControlSettings {
     provider: APIProvider;
     marketplace: Marketplace;
     contentType: ContentType;
-    groqKey?: string;
-    googleKey?: string;
     groqModel: string;
 }

@@ -20,7 +20,6 @@ const Header: React.FC<HeaderProps> = ({ settings, onSettingsChange, onOpenSetti
   };
 
   // Only listing currently active and supported Groq vision models
-  // LLaVA is deprecated/unstable on Groq, using Llama 3.2 series instead
   const groqModels = [
     { id: 'llama-3.2-11b-vision-preview', name: 'Llama 3.2 11B (Fast)' },
     { id: 'llama-3.2-90b-vision-preview', name: 'Llama 3.2 90B (Quality)' },
@@ -77,10 +76,10 @@ const Header: React.FC<HeaderProps> = ({ settings, onSettingsChange, onOpenSetti
           
           <button 
             onClick={onOpenSettings}
-            className="flex items-center gap-2 px-4 py-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-xl transition-all text-xs font-bold text-slate-300 hover:text-white uppercase tracking-wider group"
+            className="flex items-center gap-2 px-5 py-2 bg-indigo-500/10 hover:bg-indigo-500 hover:text-white border border-indigo-500/30 rounded-xl transition-all text-xs font-bold text-indigo-400 uppercase tracking-wider group shadow-lg shadow-indigo-500/10"
           >
-            <SettingsIcon className="w-4 h-4 text-slate-400 group-hover:text-white transition-colors" />
-            <span className="hidden sm:inline">API Keys</span>
+            <SettingsIcon className="w-4 h-4" />
+            <span>SET API KEYS</span>
           </button>
         </div>
       </div>

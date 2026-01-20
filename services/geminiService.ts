@@ -97,12 +97,17 @@ Requirements:
 1. Title: ~${settings.titleLength} chars.
 2. Keywords: Exactly ${settings.keywordsCount} keywords.
 3. Category: Choose from list.
-4. Output JSON ONLY.
+4. Output JSON ONLY. Do not include markdown code blocks (like \`\`\`json). Just the raw JSON object.
 `;
 };
 
 async function callGroq(file: UploadedFile, settings: ControlSettings): Promise<MetaData> {
   if (!settings.groqKey) throw new Error("Please provide a Groq API Key in settings.");
+
+  // Groq Llama 3.2 Vision does not support video files directly
+  if (file.mimeType.startsWith('video')) {
+      throw new Error("Llama 3.2 (Groq) does not support video files. Please switch to Gemini in the header.");
+  }
 
   let processedBase64 = file.base64;
   let processedMimeType = file.mimeType;
@@ -117,10 +122,9 @@ async function callGroq(file: UploadedFile, settings: ControlSettings): Promise<
       }
   }
 
-  const prompt = PROMPT_TEMPLATE(settings, file.mimeType.startsWith('video') ? 'video frame' : 'image');
+  const prompt = PROMPT_TEMPLATE(settings, 'image');
   
-  // --- CRITICAL FIX: FORCE VALID MODEL ---
-  // Even if settings has an old model, we override it here to prevent API errors.
+  // Force valid model check
   const validModels = ['llama-3.2-11b-vision-preview', 'llama-3.2-90b-vision-preview'];
   let modelToUse = settings.groqModel;
   
@@ -129,10 +133,12 @@ async function callGroq(file: UploadedFile, settings: ControlSettings): Promise<
       modelToUse = "llama-3.2-11b-vision-preview";
   }
 
+  // NOTE: Llama 3.2 Vision on Groq does NOT currently support "response_format: { type: 'json_object' }"
+  // We must rely on prompt engineering for JSON output.
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${settings.groqKey}`,
+      "Authorization": `Bearer ${settings.groqKey.trim()}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
@@ -151,8 +157,8 @@ async function callGroq(file: UploadedFile, settings: ControlSettings): Promise<
           ]
         }
       ],
-      response_format: { type: "json_object" },
       temperature: 0.2,
+      // response_format removed to prevent 400 errors
     })
   });
 
@@ -160,19 +166,29 @@ async function callGroq(file: UploadedFile, settings: ControlSettings): Promise<
     const errData = await response.json();
     const msg = errData.error?.message || response.statusText;
     
-    // Fallback logic if the specific model fails
+    // Improved Error Handling
     if (msg.toLowerCase().includes("decommissioned") || msg.toLowerCase().includes("not found")) {
-      throw new Error(`Model Error: Please open Settings and re-select "Llama 3.2 11B".`);
+        // Only suggest switching if we are on a weird model
+        if (modelToUse !== 'llama-3.2-11b-vision-preview' && modelToUse !== 'llama-3.2-90b-vision-preview') {
+             throw new Error(`Model Error: Please switch to "Llama 3.2 11B" in the header.`);
+        }
+        // Otherwise it's likely a Key issue or generic 404
+        throw new Error(`Groq Error: Resource not found. Please check your API Key.`);
     }
     throw new Error(`Groq API Error: ${msg}`);
   }
 
   const result = await response.json();
   const content = result.choices[0].message.content;
+  
+  // CLEANUP: Remove markdown code blocks if present
+  const cleanContent = content.replace(/```json/g, '').replace(/```/g, '').trim();
+
   try {
-    const parsed = JSON.parse(content);
+    const parsed = JSON.parse(cleanContent);
     return sanitizeMetadata(parsed, settings);
   } catch (e) {
+    // Fallback: Try to find JSON object in text
     const jsonMatch = content.match(/\{[\s\S]*\}/);
     if (jsonMatch) return sanitizeMetadata(JSON.parse(jsonMatch[0]), settings);
     throw new Error("Failed to parse AI response as JSON.");
@@ -206,7 +222,7 @@ export const extractMetadataStream = async (
       throw new Error("Missing Gemini API Key. Please enter it in the header.");
   }
 
-  const ai = new GoogleGenAI({ apiKey: settings.googleKey });
+  const ai = new GoogleGenAI({ apiKey: settings.googleKey.trim() });
   
   // Use Gemini 2.0 Flash (Experimental) for best speed/vision performance currently
   const model = 'gemini-2.0-flash-exp'; 

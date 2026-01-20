@@ -45,8 +45,6 @@ const App: React.FC = () => {
   });
 
   // --- FORCE MODEL CORRECTION ---
-  // This useEffect ensures that if the state contains an invalid model (loaded from cache),
-  // it gets updated immediately, syncing the UI and Logic.
   useEffect(() => {
     const validModels = ['llama-3.2-11b-vision-preview', 'llama-3.2-90b-vision-preview'];
     if (!validModels.includes(settings.groqModel)) {
@@ -117,13 +115,13 @@ const App: React.FC = () => {
   const handleProcessFiles = async () => {
     if (uploadedFiles.length === 0) return;
     
-    // Validate Keys before starting
-    if (settings.provider === 'google' && !settings.googleKey) {
+    // Validate Keys before starting (Checking trimmed values)
+    if (settings.provider === 'google' && !settings.googleKey?.trim()) {
         setIsSettingsOpen(true);
         setError("Please enter your Gemini API Key in the settings.");
         return;
     }
-    if (settings.provider === 'groq' && !settings.groqKey) {
+    if (settings.provider === 'groq' && !settings.groqKey?.trim()) {
         setIsSettingsOpen(true);
         setError("Please enter your Groq API Key in the settings.");
         return;

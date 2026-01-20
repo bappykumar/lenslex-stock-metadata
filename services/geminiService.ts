@@ -3,7 +3,7 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { UploadedFile, MetaData, ControlSettings } from '../types';
 import { compressImage } from '../utils/fileUtils';
 
-// Adobe Stock OFFICIAL Categories (Updated based on user screenshots)
+// Adobe Stock OFFICIAL Categories
 export const ADOBE_CATEGORIES = [
   "Animals", 
   "Buildings and Architecture", 
@@ -55,7 +55,6 @@ const PROMPT_TEMPLATE = (settings: ControlSettings, type: string) => {
     const isTransparent = settings.contentType === 'transparent';
     const isAdobe = settings.marketplace === 'adobe';
 
-    // Punctuation and Style Rules based on Marketplace
     const titleStyleRule = isAdobe
         ? "STYLE: Headline style (Concise). DO NOT end with a period/full stop."
         : "STYLE: Full descriptive sentence. MUST end with a period/full stop.";
@@ -65,55 +64,46 @@ Analyze this ${type} for stock photography metadata.
 Target Marketplace Rules: ${settings.marketplace}
 Content Mode: ${isTransparent ? "ISOLATED OBJECT ON TRANSPARENT BACKGROUND" : "STANDARD PHOTO"}
 
-CRITICAL LEGAL RESTRICTIONS (To avoid IP Rejection):
-1. NO TRADEMARKS/BRANDS: Do NOT include brand names, logos, or company names.
-2. NO REAL NAMES: Do not include names of real people or celebrities.
-3. GENERIC DESCRIPTIONS: Focus on the visual content, concept, emotions, and lighting.
+CRITICAL LEGAL RESTRICTIONS:
+1. NO TRADEMARKS/BRANDS.
+2. NO REAL NAMES of people.
+3. GENERIC DESCRIPTIONS focusing on visual content.
 
 MASTER TITLE STRUCTURE (SEO Optimized):
-Write a natural, flowing English string.
 ${titleStyleRule}
-1. [MAIN SUBJECT] + [ACTION] (First 70 chars - SEO Hot Zone)
-2. [CONTEXT] + [TECHNICAL DETAILS] (Remaining chars)
-Target Length: approx ${settings.titleLength} characters.
+1. [MAIN SUBJECT] + [ACTION] (First 70 chars)
+2. [CONTEXT] + [TECHNICAL DETAILS]
+Target Length: ~${settings.titleLength} characters.
 
-KEYWORD SORTING STRATEGY (THE "TOP 5" RULE - CRITICAL):
-Adobe Stock and Freepik prioritize the first 5 keywords heavily. Order matters!
-1. **Keywords 1-5 (THE MONEY ZONE)**: MUST be the Main Subject, The Literal Object, and The Main Action. (e.g., "Dog", "Running", "Beach", "Pet", "Animal"). NO abstract concepts here.
-2. **Keywords 6-15**: Secondary objects, environment, and specific details (e.g., "Sand", "Sunny", "Blue Sky", "Collar").
-3. **Keywords 16-30**: Concepts, emotions, and vibe (e.g., "Happiness", "Freedom", "Summer", "Vitality").
-4. **Keywords 30+**: Technical terms (e.g., "Copy Space", "No People", "Horizontal").
+KEYWORD SORTING STRATEGY:
+1. **Keywords 1-5**: Main Subject, Object, Action. (MANDATORY).
+2. **Keywords 6-15**: Secondary objects, environment.
+3. **Keywords 16-30**: Concepts, emotions, vibe.
+4. **Keywords 30+**: Technical terms.
 
 CATEGORY SELECTION:
-Select exactly ONE category from this list that best fits the image:
-${ADOBE_CATEGORIES.join(", ")}
+Select ONE from: ${ADOBE_CATEGORIES.join(", ")}
 
 ${isTransparent ? `
-TRANSPARENT BACKGROUND SPECIFIC RULES:
-1. Title MUST start with the object name and include "isolated on transparent background".
-2. Keywords MUST include: "transparent", "background", "isolated", "cutout", "png", "no background", "clipart".
-3. **MANDATORY**: "transparent", "isolated", "background" MUST be in the Top 5 keywords.
+TRANSPARENT RULES:
+1. Title must include "isolated on transparent background".
+2. Keywords MUST include: "transparent", "background", "isolated".
 ` : `
 STANDARD PHOTO RULES:
-1. Focus on composition, lighting, environment, and subject action.
-2. Keywords should cover emotions, setting, and conceptual meanings.
+1. Focus on composition, lighting, and subject action.
 `}
 
 Requirements:
-1. Title: Descriptive "Master Title" (~${settings.titleLength} chars).
-2. Keywords: Exactly ${settings.keywordsCount} keywords, SORTED STRICTLY by importance.
-3. Category: Choose from the list.
-
-IMPORTANT: You must return ONLY a valid JSON object following this schema:
-{ "title": "...", "keywords": ["...", "..."], "category": "..." }
+1. Title: ~${settings.titleLength} chars.
+2. Keywords: Exactly ${settings.keywordsCount} keywords.
+3. Category: Choose from list.
+4. Output JSON ONLY.
 `;
 };
 
 async function callGroq(file: UploadedFile, settings: ControlSettings): Promise<MetaData> {
   if (!settings.groqKey) throw new Error("Please provide a Groq API Key in settings.");
 
-  // Resize/Compress image for Groq to prevent "Entity Too Large" errors
-  // Groq/Llama Vision works best with images < 4MB and standard resolutions (e.g. 1024px)
   let processedBase64 = file.base64;
   let processedMimeType = file.mimeType;
 
@@ -128,7 +118,16 @@ async function callGroq(file: UploadedFile, settings: ControlSettings): Promise<
   }
 
   const prompt = PROMPT_TEMPLATE(settings, file.mimeType.startsWith('video') ? 'video frame' : 'image');
-  const modelToUse = settings.groqModel || "llama-3.2-11b-vision-preview";
+  
+  // --- CRITICAL FIX: FORCE VALID MODEL ---
+  // Even if settings has an old model, we override it here to prevent API errors.
+  const validModels = ['llama-3.2-11b-vision-preview', 'llama-3.2-90b-vision-preview'];
+  let modelToUse = settings.groqModel;
+  
+  if (!validModels.includes(modelToUse)) {
+      console.warn(`Invalid/Legacy model detected (${modelToUse}). Auto-switching to Llama 3.2 11B.`);
+      modelToUse = "llama-3.2-11b-vision-preview";
+  }
 
   const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
@@ -160,8 +159,10 @@ async function callGroq(file: UploadedFile, settings: ControlSettings): Promise<
   if (!response.ok) {
     const errData = await response.json();
     const msg = errData.error?.message || response.statusText;
-    if (msg.toLowerCase().includes("decommissioned")) {
-      throw new Error(`The selected model is no longer active. Please switch to "Llama 3.2 11B" in the header.`);
+    
+    // Fallback logic if the specific model fails
+    if (msg.toLowerCase().includes("decommissioned") || msg.toLowerCase().includes("not found")) {
+      throw new Error(`Model Error: Please open Settings and re-select "Llama 3.2 11B".`);
     }
     throw new Error(`Groq API Error: ${msg}`);
   }
@@ -178,29 +179,17 @@ async function callGroq(file: UploadedFile, settings: ControlSettings): Promise<
   }
 }
 
-// Helper to enforce punctuation rules strictly after AI generation
 const sanitizeMetadata = (metadata: MetaData, settings: ControlSettings): MetaData => {
     let title = metadata.title || "";
-    
     if (title) {
         title = title.trim();
         if (settings.marketplace === 'adobe') {
-            // Adobe: No period at the end (Headline style)
-            if (title.endsWith('.')) {
-                title = title.slice(0, -1);
-            }
+            if (title.endsWith('.')) title = title.slice(0, -1);
         } else {
-            // Freepik: Must have period at the end (Sentence style)
-            if (!title.endsWith('.')) {
-                title = title + '.';
-            }
+            if (!title.endsWith('.')) title = title + '.';
         }
     }
-
-    return {
-        ...metadata,
-        title
-    };
+    return { ...metadata, title };
 };
 
 export const extractMetadataStream = async (
@@ -213,13 +202,13 @@ export const extractMetadataStream = async (
   }
 
   // --- GOOGLE GEMINI LOGIC ---
-  
   if (!settings.googleKey) {
       throw new Error("Missing Gemini API Key. Please enter it in the header.");
   }
 
   const ai = new GoogleGenAI({ apiKey: settings.googleKey });
-  // Using the Flash model which is faster and more cost-effective for high volume
+  
+  // Use Gemini 2.0 Flash (Experimental) for best speed/vision performance currently
   const model = 'gemini-2.0-flash-exp'; 
   
   const imagePart = {
@@ -245,30 +234,20 @@ export const extractMetadataStream = async (
 
     onChunk({ title: "Analyzing..." });
     
-    // Fix: Handle undefined text response
     const textResponse = response.text;
     if (!textResponse) {
         throw new Error("No response received from Gemini.");
     }
     
     const finalMetadata: MetaData = JSON.parse(textResponse.trim());
-    
-    // Apply final sanitization (Punctuation fix)
     return sanitizeMetadata(finalMetadata, settings);
 
   } catch (error: any) {
     console.error("Error extracting metadata:", error);
-    
     if (error instanceof Error) {
-      if (error.message.includes('SAFETY')) {
-        throw new Error("Content blocked due to safety policies.");
-      }
-      if (error.message.includes('429') || error.message.includes('exhausted')) {
-          throw new Error("Rate Limit (Busy). Please try again or use a paid key.");
-      }
-      if (error.message.includes('API key') || error.message.includes('403')) {
-          throw new Error("Invalid API Key. Please check the key in header.");
-      }
+      if (error.message.includes('SAFETY')) throw new Error("Content blocked due to safety policies.");
+      if (error.message.includes('429')) throw new Error("Rate Limit (Busy). Please try again.");
+      if (error.message.includes('API key') || error.message.includes('403')) throw new Error("Invalid Gemini API Key.");
       throw new Error(`Failed: ${error.message}`);
     }
     throw new Error("An unknown error occurred.");

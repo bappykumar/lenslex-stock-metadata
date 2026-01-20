@@ -35,15 +35,6 @@ const App: React.FC = () => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        
-        // --- CRITICAL FIX: Validate Groq Model ---
-        // If the saved model is old (e.g., llava) or invalid, force update to Llama 3.2
-        const validModels = ['llama-3.2-11b-vision-preview', 'llama-3.2-90b-vision-preview'];
-        if (!validModels.includes(parsed.groqModel)) {
-            console.log("Migrating legacy model to Llama 3.2 11B");
-            parsed.groqModel = 'llama-3.2-11b-vision-preview';
-        }
-
         return { ...defaultSettings, ...parsed };
       } catch (e) {
         console.error("Failed to parse settings", e);
@@ -52,6 +43,20 @@ const App: React.FC = () => {
     }
     return defaultSettings;
   });
+
+  // --- FORCE MODEL CORRECTION ---
+  // This useEffect ensures that if the state contains an invalid model (loaded from cache),
+  // it gets updated immediately, syncing the UI and Logic.
+  useEffect(() => {
+    const validModels = ['llama-3.2-11b-vision-preview', 'llama-3.2-90b-vision-preview'];
+    if (!validModels.includes(settings.groqModel)) {
+        console.log("Auto-correcting invalid Groq model:", settings.groqModel);
+        setSettings(prev => ({
+            ...prev,
+            groqModel: 'llama-3.2-11b-vision-preview'
+        }));
+    }
+  }, [settings.groqModel]);
 
   // Save settings to localStorage whenever they change
   useEffect(() => {
@@ -114,12 +119,12 @@ const App: React.FC = () => {
     
     // Validate Keys before starting
     if (settings.provider === 'google' && !settings.googleKey) {
-        setIsSettingsOpen(true); // Open the popup automatically
+        setIsSettingsOpen(true);
         setError("Please enter your Gemini API Key in the settings.");
         return;
     }
     if (settings.provider === 'groq' && !settings.groqKey) {
-        setIsSettingsOpen(true); // Open the popup automatically
+        setIsSettingsOpen(true);
         setError("Please enter your Groq API Key in the settings.");
         return;
     }
@@ -143,7 +148,6 @@ const App: React.FC = () => {
     setIsProcessing(true);
     setError(null);
 
-    // Identify indices that have errors
     const failedIndices = processedFiles
       .map((file, index) => (file.error ? index : -1))
       .filter(index => index !== -1);
@@ -151,7 +155,6 @@ const App: React.FC = () => {
     for (const i of failedIndices) {
         setCurrentlyProcessingIndex(i);
         await processSingleFile(i);
-        // Small delay to be gentle on API when retrying manually
         await new Promise(resolve => setTimeout(resolve, 500));
     }
 
@@ -200,17 +203,13 @@ const App: React.FC = () => {
     let headers: string[] = [];
     let rows: string[] = [];
 
-    // Helper to escape CSV fields
     const escape = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
 
     if (settings.marketplace === 'freepik') {
-        // Freepik Standard Format: file, description, keywords
-        // NOTE: Freepik headers must be lowercase: 'file', 'description', 'keywords'
         headers = ["file", "description", "keywords"];
         rows = filesWithMetadata.map(item => {
             const filename = item.fileInfo.file.name;
             const title = item.metadata!.title || "";
-            // Use comma separation for keywords inside the quotes
             const keywords = (item.metadata!.keywords || []).join(', '); 
             
             return [
@@ -220,13 +219,12 @@ const App: React.FC = () => {
             ].join(',');
         });
     } else {
-        // Adobe Stock Standard Format: Filename, Title, Keywords, Category
         headers = ["Filename", "Title", "Keywords", "Category"];
         rows = filesWithMetadata.map(item => {
             const filename = item.fileInfo.file.name;
             const title = item.metadata!.title || "";
             const keywords = (item.metadata!.keywords || []).join(', ');
-            const category = item.metadata!.category || "1"; // Default or ID
+            const category = item.metadata!.category || "1";
             
             return [
                 escape(filename), 
@@ -246,7 +244,6 @@ const App: React.FC = () => {
     link.click();
   };
 
-  // Stats calculation
   const completedCount = processedFiles.filter(f => f.metadata).length;
   const failedCount = processedFiles.filter(f => f.error).length;
   

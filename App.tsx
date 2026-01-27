@@ -6,13 +6,18 @@ import ControlsPanel from './components/ControlsPanel';
 import StatusDashboard from './components/StatusDashboard';
 import FileWorkspace from './components/FileWorkspace';
 import { UploadedFile, FileWithMetadata, ControlSettings } from './types';
-import { fileToBase64 } from './utils/fileUtils';
+import { compressImage } from './utils/fileUtils';
+import { parseCSVImport } from './utils/csvUtils';
 import { extractMetadataStream } from './services/geminiService';
+// @ts-ignore
+import JSZip from 'jszip';
 
 const App: React.FC = () => {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [processedFiles, setProcessedFiles] = useState<FileWithMetadata[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0); // 0 to 100
   const [currentlyProcessingIndex, setCurrentlyProcessingIndex] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,30 +25,25 @@ const App: React.FC = () => {
   const [settings, setSettings] = useState<ControlSettings>(() => {
     const saved = localStorage.getItem('lenslex_settings');
     const defaultSettings: ControlSettings = {
-      titleLength: 120,
+      adobeTitleLength: 120, 
+      freepikTitleLength: 100,
       keywordsCount: 46,
-      provider: 'google', // Default to Google as it is the most stable free option
-      marketplace: 'adobe',
       contentType: 'photo',
-      groqModel: 'llama-3.2-11b-vision-preview', 
     };
 
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
+        // clean up old keys if they exist in localstorage
+        const { provider, groqModel, isAI, aiModel, marketplace, titleLength, ...cleanSettings } = parsed;
         
-        // RECOVERY FIX:
-        // If the user was using Groq (which is broken/retired), force switch them to Google Gemini
-        if (parsed.provider === 'groq') {
-            parsed.provider = 'google';
-        }
-
-        // Fix decommissioned Groq models if they are still selected
-        if (parsed.groqModel === 'llama-3.2-90b-vision-preview') {
-            parsed.groqModel = 'llama-3.2-11b-vision-preview';
-        }
-        
-        return { ...defaultSettings, ...parsed };
+        // Ensure new keys exist if loading old config
+        return { 
+            ...defaultSettings, 
+            ...cleanSettings,
+            adobeTitleLength: cleanSettings.adobeTitleLength || 120,
+            freepikTitleLength: cleanSettings.freepikTitleLength || 100
+        };
       } catch (e) {
         console.error("Failed to parse settings", e);
         return defaultSettings;
@@ -59,22 +59,62 @@ const App: React.FC = () => {
 
   const handleFileSelect = async (files: File[]) => {
     setError(null);
+    setIsUploading(true);
+    setUploadProgress(0);
+    
+    await new Promise(resolve => setTimeout(resolve, 100));
+
     try {
-      const filePromises = files.map(async (file) => {
-        const base64 = await fileToBase64(file);
-        return { file, base64, mimeType: file.type };
-      });
-      const newFiles = await Promise.all(filePromises);
+      const newFiles: UploadedFile[] = [];
+      const total = files.length;
+      
+      for (let i = 0; i < total; i++) {
+        const file = files[i];
+        try {
+            const { base64, mimeType } = await compressImage(file);
+            newFiles.push({ file, base64, mimeType });
+        } catch (e) {
+            console.error(`Failed to read file ${file.name}`, e);
+        }
+        setUploadProgress(Math.round(((i + 1) / total) * 100));
+        await new Promise(r => setTimeout(r, 10));
+      }
+      
       setUploadedFiles(prev => [...prev, ...newFiles]);
       setProcessedFiles(prev => [...prev, ...newFiles.map(fileInfo => ({ fileInfo }))]);
     } catch (err) {
       setError('Error reading files.');
+    } finally {
+      await new Promise(resolve => setTimeout(resolve, 300));
+      setIsUploading(false);
+      setUploadProgress(0);
     }
+  };
+
+  const handleCsvImport = async (file: File) => {
+      setIsUploading(true);
+      setError(null);
+      try {
+          const importedData = await parseCSVImport(file);
+          if (importedData.length === 0) {
+              setError("No valid data found in CSV.");
+          } else {
+              setProcessedFiles(prev => [...prev, ...importedData]);
+              const dummyUploads = importedData.map(d => d.fileInfo);
+              setUploadedFiles(prev => [...prev, ...dummyUploads]);
+          }
+      } catch (e) {
+          setError("Failed to parse CSV file.");
+      } finally {
+          setIsUploading(false);
+      }
   };
 
   const processSingleFile = async (index: number) => {
     const fileInfo = uploadedFiles[index];
-    if (!fileInfo) return;
+    if (!fileInfo || !fileInfo.base64) {
+        return; 
+    }
 
     setProcessedFiles(prev => {
       const newFiles = [...prev];
@@ -82,23 +122,27 @@ const App: React.FC = () => {
         ...newFiles[index], 
         metadata: undefined, 
         error: undefined, 
-        isStreaming: true,
-        lastProviderUsed: settings.provider
+        isStreaming: true
       };
       return newFiles;
     });
 
     try {
       const metadata = await extractMetadataStream(fileInfo, settings, (partial) => {
-        // Status updates can be handled here
-        if (partial.title) {
+        // Just triggers UI update, actual data is set at end for cleaner stream
+        if (partial.adobe_title) {
             setProcessedFiles(prev => {
                 const newFiles = [...prev];
-                // Only update if we don't have final metadata yet
+                // Only initialize if not already set, to show "Analyzing"
                 if (!newFiles[index].metadata) {
                     newFiles[index] = {
                         ...newFiles[index],
-                        metadata: { title: partial.title, keywords: [], category: "" }
+                        metadata: { 
+                            adobe_title: "Analyzing...", 
+                            freepik_title: "Analyzing...",
+                            keywords: [], 
+                            category: ""
+                        }
                     };
                 }
                 return newFiles;
@@ -128,13 +172,12 @@ const App: React.FC = () => {
     setError(null);
     
     for (let i = 0; i < uploadedFiles.length; i++) {
-        // Skip already successfully processed files
         if (processedFiles[i]?.metadata) continue;
-        
+        if (!uploadedFiles[i].base64) continue;
+
         setCurrentlyProcessingIndex(i);
         await processSingleFile(i);
         
-        // Add a deliberate delay between files to avoid hitting API Rate Limits (RPM)
         if (i < uploadedFiles.length - 1) {
              await new Promise(resolve => setTimeout(resolve, 2000));
         }
@@ -154,6 +197,8 @@ const App: React.FC = () => {
     
     for (let j = 0; j < failedIndices.length; j++) {
         const i = failedIndices[j];
+        if (!uploadedFiles[i].base64) continue;
+
         setCurrentlyProcessingIndex(i);
         await processSingleFile(i);
         
@@ -167,6 +212,7 @@ const App: React.FC = () => {
   };
   
   const handleRegenerateFile = async (index: number) => {
+    if (!uploadedFiles[index].base64) return;
     setCurrentlyProcessingIndex(index);
     await processSingleFile(index);
     setCurrentlyProcessingIndex(null);
@@ -194,39 +240,99 @@ const App: React.FC = () => {
     });
   };
 
+  const handleTitleChange = (index: number, type: 'adobe' | 'freepik', newTitle: string) => {
+    setProcessedFiles(prev => {
+        const newFiles = [...prev];
+        const currentFile = newFiles[index];
+        if (currentFile && currentFile.metadata) {
+            const updatedMetadata = { ...currentFile.metadata };
+            if (type === 'adobe') updatedMetadata.adobe_title = newTitle;
+            if (type === 'freepik') updatedMetadata.freepik_title = newTitle;
+            
+            newFiles[index] = {
+                ...currentFile,
+                metadata: updatedMetadata
+            };
+        }
+        return newFiles;
+    });
+  };
+
+  const handleKeywordsChange = (index: number, newKeywordsString: string) => {
+      const newKeywords = newKeywordsString.split(',').map(k => k.trim()).filter(k => k !== "");
+      setProcessedFiles(prev => {
+        const newFiles = [...prev];
+        const currentFile = newFiles[index];
+        if (currentFile && currentFile.metadata) {
+            newFiles[index] = {
+                ...currentFile,
+                metadata: {
+                    ...currentFile.metadata,
+                    keywords: newKeywords
+                }
+            };
+        }
+        return newFiles;
+    });
+  };
+
   const handleClearAll = () => {
     setUploadedFiles([]);
     setProcessedFiles([]);
     setError(null);
   };
 
-  const handleExportCSV = () => {
-    const filesWithMetadata = processedFiles.filter(f => f.metadata);
-    if (filesWithMetadata.length === 0) return;
+  const downloadBlob = (content: string, prefix: string) => {
+      const blob = new Blob(["\uFEFF" + content], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      
+      const now = new Date();
+      const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+      
+      // 12-Hour Time Format
+      let hours = now.getHours();
+      const ampm = hours >= 12 ? 'PM' : 'AM';
+      hours = hours % 12;
+      hours = hours ? hours : 12; 
+      const hoursStr = String(hours).padStart(2, '0');
+      const minutesStr = String(now.getMinutes()).padStart(2, '0');
+      const secondsStr = String(now.getSeconds()).padStart(2, '0');
+      
+      const timeStr = `${hoursStr}-${minutesStr}-${secondsStr}${ampm}`;
+      
+      link.download = `${prefix}_CSV_${dateStr}_${timeStr}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+  };
 
-    let headers: string[] = [];
-    let rows: string[] = [];
+  const generateCSVContent = (type: 'adobe' | 'freepik') => {
+      const filesWithMetadata = processedFiles.filter(f => f.metadata);
+      if (filesWithMetadata.length === 0) return null;
 
-    const escape = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
+      const escape = (s: string) => `"${String(s).replace(/"/g, '""')}"`;
 
-    if (settings.marketplace === 'freepik') {
-        headers = ["file", "description", "keywords"];
-        rows = filesWithMetadata.map(item => {
+      if (type === 'freepik') {
+        const headers = ["File name", "Title", "Keywords"];
+        const rows = filesWithMetadata.map(item => {
             const filename = item.fileInfo.file.name;
-            const title = item.metadata!.title || "";
+            const title = item.metadata!.freepik_title || item.metadata!.adobe_title || ""; 
             const keywords = (item.metadata!.keywords || []).join(', '); 
             
             return [
                 escape(filename),
                 escape(title),
                 escape(keywords)
-            ].join(',');
+            ].join(';');
         });
+        return [headers.join(';'), ...rows].join('\n');
     } else {
-        headers = ["Filename", "Title", "Keywords", "Category"];
-        rows = filesWithMetadata.map(item => {
+        const headers = ["Filename", "Title", "Keywords", "Category"];
+        const rows = filesWithMetadata.map(item => {
             const filename = item.fileInfo.file.name;
-            const title = item.metadata!.title || "";
+            const title = item.metadata!.adobe_title || item.metadata!.freepik_title || ""; 
             const keywords = (item.metadata!.keywords || []).join(', ');
             const category = item.metadata!.category || "1";
             
@@ -237,59 +343,126 @@ const App: React.FC = () => {
                 escape(category)
             ].join(',');
         });
+        return [headers.join(','), ...rows].join('\n');
     }
+  };
 
-    const csvContent = [headers.join(','), ...rows].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `lenslex_${settings.marketplace}_${new Date().getTime()}.csv`;
-    link.click();
+  const handleExportCSV = async (type: 'adobe' | 'freepik' | 'both') => {
+    if (type === 'both') {
+        // Zip Logic to avoid multiple download permission prompt
+        const adobeContent = generateCSVContent('adobe');
+        const freepikContent = generateCSVContent('freepik');
+        
+        if (!adobeContent && !freepikContent) return;
+
+        const zip = new JSZip();
+        
+        const now = new Date();
+        const dateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        // 12-Hour Time Format
+        let hours = now.getHours();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        hours = hours % 12;
+        hours = hours ? hours : 12; 
+        const timeStr = `${String(hours).padStart(2, '0')}-${String(now.getMinutes()).padStart(2, '0')}${ampm}`;
+
+        if (adobeContent) zip.file(`Adobe_CSV_${dateStr}_${timeStr}.csv`, "\uFEFF" + adobeContent);
+        if (freepikContent) zip.file(`Freepik_CSV_${dateStr}_${timeStr}.csv`, "\uFEFF" + freepikContent);
+
+        try {
+            const zipContent = await zip.generateAsync({ type: "blob" });
+            const url = URL.createObjectURL(zipContent);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `LensLex_Export_${dateStr}_${timeStr}.zip`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (e) {
+            console.error("Failed to create zip", e);
+            // Fallback to individual if zip fails (unlikely)
+            if (adobeContent) downloadBlob(adobeContent, 'Adobe');
+            if (freepikContent) downloadBlob(freepikContent, 'Freepik');
+        }
+
+    } else {
+        const content = generateCSVContent(type);
+        if (content) downloadBlob(content, type === 'adobe' ? 'Adobe' : 'Freepik');
+    }
   };
 
   const completedCount = processedFiles.filter(f => f.metadata).length;
   const failedCount = processedFiles.filter(f => f.error).length;
   
   return (
-    <div className="flex flex-col min-h-screen bg-[#0f172a] text-slate-200">
+    <div className="flex flex-col min-h-screen bg-[#0f172a] text-slate-200 font-sans selection:bg-indigo-500/30 selection:text-indigo-200">
+      <style>{`
+        @keyframes slideUp {
+          from { opacity: 0; transform: translateY(20px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes pulse-ring {
+          0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.7); }
+          70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
+          100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
+        }
+        @keyframes scan {
+            0% { top: -10%; opacity: 0; }
+            15% { opacity: 1; }
+            85% { opacity: 1; }
+            100% { top: 110%; opacity: 0; }
+        }
+      `}</style>
       <Header 
         settings={settings} 
         onSettingsChange={setSettings} 
       />
       
-      <main className="flex-grow container mx-auto p-4 md:p-10 max-w-7xl">
-        <div className="space-y-8">
-          <ControlsPanel
-            onFilesSelect={handleFileSelect}
-            onProcess={handleProcessFiles}
-            onClearAll={handleClearAll}
-            onExportCSV={handleExportCSV}
-            onRetryFailed={handleRetryFailed}
-            isProcessing={isProcessing}
-            hasFiles={uploadedFiles.length > 0}
-            hasProcessedFiles={processedFiles.some(f => f.metadata)}
-            failedCount={failedCount}
-            settings={settings}
-            onSettingsChange={setSettings}
-          />
-          
-          <StatusDashboard 
-            total={uploadedFiles.length}
-            completed={completedCount}
-            failed={failedCount}
-            isProcessing={isProcessing}
-          />
+      {/* 2-Column Split Layout */}
+      <main className="flex-grow container mx-auto p-4 md:p-6 max-w-[1920px]">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            {/* Left Sidebar: Controls Only (Span 4 = 1/3) */}
+            <aside className="lg:col-span-4 xl:col-span-3 space-y-6 sticky top-24 z-30">
+                <ControlsPanel
+                    onFilesSelect={handleFileSelect}
+                    onCsvSelect={handleCsvImport}
+                    onProcess={handleProcessFiles}
+                    onClearAll={handleClearAll}
+                    onExportCSV={handleExportCSV}
+                    onRetryFailed={handleRetryFailed}
+                    isProcessing={isProcessing}
+                    isUploading={isUploading}
+                    uploadProgress={uploadProgress}
+                    hasFiles={uploadedFiles.length > 0}
+                    hasProcessedFiles={processedFiles.some(f => f.metadata)}
+                    failedCount={failedCount}
+                    settings={settings}
+                    onSettingsChange={setSettings}
+                />
+            </aside>
 
-          {error && <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-6 py-4 rounded-xl backdrop-blur-sm font-bold text-center animate-pulse">{error}</div>}
-          
-          <FileWorkspace 
-            files={processedFiles}
-            onRegenerate={handleRegenerateFile}
-            onDelete={handleDeleteFile}
-            onCategoryChange={handleCategoryChange}
-            currentlyProcessingIndex={currentlyProcessingIndex}
-          />
+            {/* Right Workspace: Status & Generated Files (Span 8 = 2/3) */}
+            <div className="lg:col-span-8 xl:col-span-9 space-y-6">
+                <StatusDashboard 
+                    total={uploadedFiles.length}
+                    completed={completedCount}
+                    failed={failedCount}
+                    isProcessing={isProcessing}
+                />
+
+                {error && <div className="bg-red-500/10 border border-red-500/50 text-red-400 px-6 py-4 rounded-xl backdrop-blur-sm font-bold text-center animate-pulse">{error}</div>}
+                
+                <FileWorkspace 
+                    files={processedFiles}
+                    onRegenerate={handleRegenerateFile}
+                    onDelete={handleDeleteFile}
+                    onCategoryChange={handleCategoryChange}
+                    onTitleChange={handleTitleChange}
+                    onKeywordsChange={handleKeywordsChange}
+                    currentlyProcessingIndex={currentlyProcessingIndex}
+                />
+            </div>
         </div>
       </main>
       <Footer />

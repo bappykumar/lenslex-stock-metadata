@@ -32,14 +32,14 @@ export const UploadIcon: React.FC<IconProps> = ({ className, ...props }) => (
     <path
       strokeLinecap="round"
       strokeLinejoin="round"
-      d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"
+      d="M12 16.5V9.75m0 0l3 3m-3-3l-3 3M6.75 19.5a4.5 4.5 0 01-1.41-8.775 5.25 5.25 0 0110.233-2.33 3 3 0 013.758 3.848A3.752 3.752 0 0118 19.5H6.75z"
     />
   </svg>
 );
 
 export const LoadingSpinner: React.FC<IconProps> = ({ className, ...props }) => (
   <svg
-    className={className || "animate-spin h-5 w-5 text-white"}
+    className={className || "animate-spin h-5 w-5 text-current"}
     xmlns="http://www.w3.org/2000/svg"
     fill="none"
     viewBox="0 0 24 24"
@@ -80,53 +80,57 @@ export const FileIcon: React.FC<IconProps> = ({ className, ...props }) => (
 );
 
 export const TrashIcon: React.FC<IconProps> = ({ className, ...props }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={className || "w-4 h-4"} {...props}>
-        <path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.71l.5 5a.75.75 0 0 1-1.474.14l-.5-5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .71.787l-.5 5a.75.75 0 1 1-1.474-.14l.5-5a.75.75 0 0 1 .764-.647Z" clipRule="evenodd" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className || "w-4 h-4"} {...props}>
+        <path fillRule="evenodd" d="M16.5 4.478v.227a48.816 48.816 0 013.878.512.75.75 0 11-.256 1.478l-.209-.035-1.005 13.07a3 3 0 01-2.991 2.77H8.084a3 3 0 01-2.991-2.77L4.087 6.66l-.209.035a.75.75 0 01-.256-1.478A48.567 48.567 0 017.5 4.705v-.227c0-1.564 1.213-2.9 2.816-2.951a52.662 52.662 0 013.369 0c1.603.051 2.815 1.387 2.815 2.951zm-6.136-1.452a51.196 51.196 0 013.273 0C14.39 3.05 15 3.684 15 4.478v.113a49.488 49.488 0 00-6 0v-.113c0-.794.609-1.428 1.364-1.452zm-.355 5.945a.75.75 0 10-1.5.058l.347 9a.75.75 0 101.499-.058l-.346-9zm5.48.058a.75.75 0 10-1.498-.058l-.347 9a.75.75 0 001.5.058l.345-9z" clipRule="evenodd" />
     </svg>
 );
 
 export const CopyIcon: React.FC<IconProps> = ({ className, ...props }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={className || "w-4 h-4"} {...props}>
-        <path d="M5.75 2a.75.75 0 0 0-.75.75v.5h-1.5a.75.75 0 0 0-.75.75v8.5c0 .414.336.75.75.75h6.5a.75.75 0 0 0 .75-.75v-8.5a.75.75 0 0 0-.75-.75h-1.5v-.5A.75.75 0 0 0 8.25 2h-2.5ZM6.5 3.25V4h3V3.25a.75.75 0 0 0-.75-.75h-1.5a.75.75 0 0 0-.75.75ZM4.5 5.5A.75.75 0 0 0 3.75 6v7.25c0 .414.336.75.75.75h7.5a.75.75 0 0 0 .75-.75V6a.75.75 0 0 0-.75-.75h-7.5Z" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className || "w-4 h-4"} {...props}>
+        <path d="M7.5 3.375c0-1.036.84-1.875 1.875-1.875h.375a3.75 3.75 0 013.75 3.75v1.875C13.5 8.161 14.34 9 15.375 9h1.875A3.75 3.75 0 0121 12.75v3.375C21 17.16 20.16 18 19.125 18h-9.75A1.875 1.875 0 017.5 16.125V3.375z" />
+        <path d="M15 5.25a5.23 5.23 0 00-1.279-3.434 9.768 9.768 0 016.963 6.963A5.23 5.23 0 0017.25 7.5h-1.875A.375.375 0 0115 7.125V5.25zM3 15v-6.75a3 3 0 013-3h1.5v2.25A3.75 3.75 0 0011.25 11.25h2.25v9.75a3 3 0 01-3 3h-6.75a3 3 0 01-3-3V15z" />
     </svg>
 );
 
 export const RegenerateIcon: React.FC<IconProps> = ({ className, ...props }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={className || "w-4 h-4"} {...props}>
-        <path fillRule="evenodd" d="M10.75 2a.75.75 0 0 0-1.5 0v1.512a4.5 4.5 0 0 0-7.386 2.375.75.75 0 0 0 1.458.388A3 3 0 0 1 8.5 4.502V6A.75.75 0 0 0 10 6V4.5h.75a.75.75 0 0 0 0-1.5H10V2ZM3.291 8.342A.75.75 0 0 0 2.25 9.5v2.25a.75.75 0 0 0 1.5 0v-1.512a4.5 4.5 0 0 0 7.386-2.375.75.75 0 0 0-1.458-.388A3 3 0 0 1 7.5 11.498V10a.75.75 0 0 0-1.5 0v1.5H5.25a.75.75 0 0 0 0 1.5H6v.75a.75.75 0 0 0 1.5 0V14a4.5 4.5 0 0 0 4.5-4.5.75.75 0 0 0-1.5 0A3 3 0 0 1 7.5 12.5a3 3 0 0 1-3-3 .75.75 0 0 0-1.209-.858Z" clipRule="evenodd" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className || "w-4 h-4"} {...props}>
+        <path fillRule="evenodd" d="M4.755 10.059a7.5 7.5 0 0112.548-3.364l1.903 1.903h-3.183a.75.75 0 100 1.5h4.992a.75.75 0 00.75-.75V4.356a.75.75 0 00-1.5 0v3.18l-1.9-1.9A9 9 0 003.306 9.67a.75.75 0 101.45.388zm15.408 3.352a.75.75 0 00-.919.53 7.5 7.5 0 01-12.548 3.364l-1.902-1.903h3.183a.75.75 0 000-1.5H2.984a.75.75 0 00-.75.75v4.992a.75.75 0 001.5 0v-3.18l1.9 1.9a9 9 0 0015.059-4.035.75.75 0 00-.53-.918z" clipRule="evenodd" />
     </svg>
 );
 
 export const TitleIcon: React.FC<IconProps> = ({ className, ...props }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={className || "w-4 h-4"} {...props}>
-        <path d="M4 2a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V3a1 1 0 0 0-1-1H4ZM3 3a2 2 0 0 1 2-2h6a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V3Z" />
-        <path d="M8 5.5a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0V6.25A.75.75 0 0 1 8 5.5ZM5.25 4.5a.75.75 0 0 0 0 1.5h5.5a.75.75 0 0 0 0-1.5h-5.5Z" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className || "w-4 h-4"} {...props}>
+        <path d="M5.625 1.5c-1.036 0-1.875.84-1.875 1.875v17.25c0 1.035.84 1.875 1.875 1.875h12.75c1.035 0 1.875-.84 1.875-1.875V12.75A3.75 3.75 0 0016.5 9h-1.875a1.875 1.875 0 01-1.875-1.875V5.25A3.75 3.75 0 009 1.5H5.625z" />
+        <path d="M12.971 1.816A5.23 5.23 0 0114.25 5.25v1.875c0 .207.168.375.375.375H16.5a5.23 5.23 0 013.434 1.279 9.768 9.768 0 00-6.963-6.963z" />
     </svg>
 );
 
 export const TagsIcon: React.FC<IconProps> = ({ className, ...props }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={className || "w-4 h-4"} {...props}>
-        <path d="M2 3.25A1.25 1.25 0 0 1 3.25 2h9.5A1.25 1.25 0 0 1 14 3.25v9.5A1.25 1.25 0 0 1 12.75 14h-9.5A1.25 1.25 0 0 1 2 12.75v-9.5ZM3.25 3a.25.25 0 0 0-.25.25v9.5c0 .138.112.25.25.25h9.5a.25.25 0 0 0 .25-.25v-9.5a.25.25 0 0 0-.25-.25h-9.5Z" />
-        <path d="M5 5.25a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1-.75-.75Zm0 3a.75.75 0 0 1 .75-.75h4.5a.75.75 0 0 1 0 1.5h-4.5A.75.75 0 0 1 5 8.25Zm.75 2.25a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5h-4.5Z" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className || "w-4 h-4"} {...props}>
+        <path fillRule="evenodd" d="M5.25 2.25a3 3 0 00-3 3v4.318a3 3 0 00.879 2.121l9.58 9.581c.92.92 2.409.92 3.328 0l5.318-5.318a2.353 2.353 0 000-3.328l-9.58-9.58A3 3 0 009.568 2.25H5.25zM6 8.25a2.25 2.25 0 100-4.5 2.25 2.25 0 000 4.5z" clipRule="evenodd" />
     </svg>
 );
 
 export const ClearIcon: React.FC<IconProps> = ({ className, ...props }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={className || "w-4 h-4"} {...props}>
-        <path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.71l.5 5a.75.75 0 0 1-1.474.14l-.5-5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .71.787l-.5 5a.75.75 0 1 1-1.474-.14l.5-5a.75.75 0 0 1 .764-.647Z" clipRule="evenodd" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className || "w-4 h-4"} {...props}>
+        <path fillRule="evenodd" d="M12 2.25c-5.385 0-9.75 4.365-9.75 9.75s4.365 9.75 9.75 9.75 9.75-4.365 9.75-9.75S17.385 2.25 12 2.25zm-1.72 6.97a.75.75 0 10-1.06 1.06L10.94 12l-1.72 1.72a.75.75 0 101.06 1.06L12 13.06l1.72 1.72a.75.75 0 101.06-1.06L13.06 12l1.72-1.72a.75.75 0 10-1.06-1.06L12 10.94l-1.72-1.72z" clipRule="evenodd" />
     </svg>
 );
 
 export const ExportIcon: React.FC<IconProps> = ({ className, ...props }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className={className || "w-4 h-4"} {...props}>
-        <path d="M2 6.75A.75.75 0 0 1 2.75 6h10.5a.75.75 0 0 1 0 1.5H2.75A.75.75 0 0 1 2 6.75Z" />
-        <path d="M2 10.75A.75.75 0 0 1 2.75 10h10.5a.75.75 0 0 1 0 1.5H2.75a.75.75 0 0 1-.75-.75Z" />
-        <path d="M5.47 2.47a.75.75 0 0 1 1.06 0l2.5 2.5a.75.75 0 0 1-1.06 1.06L7 4.811V13.5a.75.75 0 0 1-1.5 0V4.811L4.47 6.03a.75.75 0 0 1-1.06-1.06l2.06-2.06Z" />
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className || "w-4 h-4"} {...props}>
+        <path fillRule="evenodd" d="M12 2.25a.75.75 0 01.75.75v11.69l3.22-3.22a.75.75 0 111.06 1.06l-4.5 4.5a.75.75 0 01-1.06 0l-4.5-4.5a.75.75 0 111.06-1.06l3.22 3.22V3a.75.75 0 01.75-.75zm-9 13.5a.75.75 0 01.75.75v2.25a1.5 1.5 0 001.5 1.5h13.5a1.5 1.5 0 001.5-1.5V16.5a.75.75 0 011.5 0v2.25a3 3 0 01-3 3H5.25a3 3 0 01-3-3V16.5a.75.75 0 01.75-.75z" clipRule="evenodd" />
+    </svg>
+);
+
+export const ImportIcon: React.FC<IconProps> = ({ className, ...props }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className || "w-4 h-4"} {...props}>
+        <path fillRule="evenodd" d="M12 2.25a.75.75 0 0 1 .75.75v11.69l3.22-3.22a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 1 1 1.06-1.06l3.22 3.22V3a.75.75 0 0 1 .75-.75Zm-9 13.5a.75.75 0 0 1 .75.75v2.25a1.5 1.5 0 0 0 1.5 1.5h13.5a1.5 1.5 0 0 0 1.5-1.5V16.5a.75.75 0 0 1 1.5 0v2.25a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V16.5a.75.75 0 0 1 .75-.75Z" clipRule="evenodd" />
     </svg>
 );
 
 export const SettingsIcon: React.FC<IconProps> = ({ className, ...props }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={className || "w-5 h-5 text-gray-300"} {...props}>
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className || "w-5 h-5"} {...props}>
         <path fillRule="evenodd" d="M11.078 2.25c-.217 0-.424.034-.622.093l-1.42.475a3.75 3.75 0 0 0-2.093 2.093l-.475 1.42a4.64 4.64 0 0 1-.093.622 3.75 3.75 0 0 0 0 5.482 4.64 4.64 0 0 1 .093.622l.475 1.42a3.75 3.75 0 0 0 2.093 2.093l1.42.475c.198.059.405.093.622.093a3.75 3.75 0 0 0 5.482 0 4.64 4.64 0 0 1 .622-.093l1.42-.475a3.75 3.75 0 0 0 2.093-2.093l.475-1.42a4.64 4.64 0 0 1 .093-.622 3.75 3.75 0 0 0 0-5.482 4.64 4.64 0 0 1-.093-.622l-.475-1.42a3.75 3.75 0 0 0-2.093-2.093l-1.42-.475a4.64 4.64 0 0 1-.622-.093 3.75 3.75 0 0 0-5.482 0ZM10 7.25a2.75 2.75 0 1 0 0 5.5 2.75 2.75 0 0 0 0-5.5Z" clipRule="evenodd" />
         <path d="M12.25 10a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z" />
     </svg>

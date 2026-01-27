@@ -1,7 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
 import { UploadedFile, MetaData, ControlSettings } from '../types';
-import { compressImage } from '../utils/fileUtils';
 
 // Adobe Stock OFFICIAL Categories
 export const ADOBE_CATEGORIES = [
@@ -28,195 +27,246 @@ export const ADOBE_CATEGORIES = [
   "Travel"
 ];
 
+// Comprehensive list of brands/trademarks to scrub
+const FORBIDDEN_WORDS = [
+    // Tech & Social
+    'Apple', 'iPhone', 'iPad', 'MacBook', 'iMac', 'AirPods', 'Siri', 'iOS',
+    'Samsung', 'Galaxy', 'Android', 'Google', 'Pixel', 'Microsoft', 'Windows', 
+    'Facebook', 'Instagram', 'Twitter', 'X.com', 'TikTok', 'YouTube', 'WhatsApp', 'LinkedIn', 'Snapchat', 'Pinterest',
+    'Amazon', 'Alexa', 'Netflix', 'Spotify', 'Uber', 'Tesla', 'Zoom', 'Skype',
+    
+    // Fashion & Luxury
+    'Nike', 'Adidas', 'Puma', 'Reebok', 'Gucci', 'Prada', 'Chanel', 'Louis Vuitton', 'Hermes', 'Rolex', 'Ray-Ban',
+    
+    // Cars
+    'BMW', 'Mercedes', 'Audi', 'Ferrari', 'Lamborghini', 'Porsche', 'Toyota', 'Honda', 'Ford', 'Jeep',
+    
+    // Food & Drink
+    'Coca-Cola', 'Coke', 'Pepsi', 'McDonalds', 'Starbucks', 'Burger King', 'KFC', 'Nutella', 'Oreo',
+    
+    // Entertainment & Characters
+    'Disney', 'Marvel', 'DC Comics', 'Spiderman', 'Batman', 'Superman', 'Joker', 'Harry Potter', 
+    'Star Wars', 'Mickey Mouse', 'Barbie', 'Lego', 'Nintendo', 'PlayStation', 'Xbox', 'Pokemon',
+    
+    // Misc
+    'Polaroid', 'GoPro', 'Drone', 'Bitcoin', 'Ethereum' // Crypto names are sometimes flagged depending on context, safer to genericize
+];
+
 const metadataSchema = {
   type: Type.OBJECT,
   properties: {
-    title: {
+    adobe_title: {
       type: Type.STRING,
-      description: 'A concise and descriptive title for the file content.'
+      description: 'Descriptive title for Adobe Stock.'
+    },
+    freepik_title: {
+      type: Type.STRING,
+      description: 'Concise title for Freepik.'
     },
     keywords: {
       type: Type.ARRAY,
       items: {
         type: Type.STRING,
       },
-      description: 'A list of relevant keywords sorted by visual importance.'
+      description: 'List of keywords.'
     },
     category: {
       type: Type.STRING,
-      description: 'The most suitable category from the provided list.',
+      description: 'Selected category.',
       enum: ADOBE_CATEGORIES
     }
   },
-  required: ['title', 'keywords', 'category']
+  required: ['adobe_title', 'freepik_title', 'keywords', 'category']
 };
 
 const PROMPT_TEMPLATE = (settings: ControlSettings, type: string) => {
     const isTransparent = settings.contentType === 'transparent';
-    const isAdobe = settings.marketplace === 'adobe';
-
-    const titleStyleRule = isAdobe
-        ? "STYLE: Headline style (Concise). DO NOT end with a period/full stop."
-        : "STYLE: Full descriptive sentence. MUST end with a period/full stop.";
+    const suffixLen = isTransparent ? 35 : 0; // Length of " isolated on transparent background"
     
+    // Calculate EXACT character limits for the AI to generate
+    const adobeGenLimit = Math.max(10, settings.adobeTitleLength - suffixLen);
+    const freepikGenLimit = Math.max(10, settings.freepikTitleLength - suffixLen);
+
     return `
-Analyze this ${type} for stock photography metadata.
-Target Marketplace Rules: ${settings.marketplace}
-Content Mode: ${isTransparent ? "ISOLATED OBJECT ON TRANSPARENT BACKGROUND" : "STANDARD PHOTO"}
+You are a Senior Stock Photography Metadata Expert.
+Analyze this ${type} and generate metadata optimized for high sales on Adobe Stock and Freepik.
 
-CRITICAL LEGAL RESTRICTIONS:
-1. NO TRADEMARKS/BRANDS.
-2. NO REAL NAMES of people.
-3. GENERIC DESCRIPTIONS focusing on visual content.
+---
+### 1. INTELLECTUAL PROPERTY & BRAND SAFETY (CRITICAL)
+**ZERO TOLERANCE FOR BRANDS.** If you see a logo or design, you MUST genericize it.
+*   **Tech:** Use "Smartphone" (NOT iPhone), "Laptop" (NOT MacBook).
+*   **Social:** Use "Social Media app" (NOT Instagram/Facebook).
+*   **Shoes:** Use "Sneakers" (NOT Nike).
+*   **Characters:** Use "Superhero" (NOT Spiderman).
 
-MASTER TITLE STRUCTURE (SEO Optimized):
-${titleStyleRule}
-1. [MAIN SUBJECT] + [ACTION] (First 70 chars)
-2. [CONTEXT] + [TECHNICAL DETAILS]
-Target Length: ~${settings.titleLength} characters.
-
-KEYWORD SORTING STRATEGY:
-1. **Keywords 1-5**: Main Subject, Object, Action. (MANDATORY).
-2. **Keywords 6-15**: Secondary objects, environment.
-3. **Keywords 16-30**: Concepts, emotions, vibe.
-4. **Keywords 30+**: Technical terms.
-
-CATEGORY SELECTION:
-Select ONE from: ${ADOBE_CATEGORIES.join(", ")}
+---
+### 2. IMAGE ANALYSIS & STRATEGY
+**Detected Mode:** ${isTransparent ? 'TRANSPARENT BACKGROUND (PNG/Element)' : 'FULL PHOTOGRAPH (JPG/Background Included)'}
 
 ${isTransparent ? `
-TRANSPARENT RULES:
-1. Title must include "isolated on transparent background".
-2. Keywords MUST include: "transparent", "background", "isolated".
+**STRATEGY FOR TRANSPARENT IMAGES:**
+*   **Focus:** The Object itself, its material, pose, and utility as a design element.
+*   **Forbidden in Title:** Do NOT describe a background (e.g., "in a room"). Do NOT use words like "PNG", "Cutout", "Clipart", "Sticker" in the title string.
+*   **Required Keywords:** "Cutout", "Isolated", "Transparent", "PNG", "Element", "Object", "Clipart", "No background".
 ` : `
-STANDARD PHOTO RULES:
-1. Focus on composition, lighting, and subject action.
+**STRATEGY FOR PHOTOS:**
+*   **Focus:** Storytelling, Context, Lighting, and Environment.
+*   **Required:** Describe WHERE the subject is (Indoors, Outdoors, Office, Park) and the MOOD (Happy, Serious, Sunny, Dark).
 `}
 
-Requirements:
-1. Title: ~${settings.titleLength} chars.
-2. Keywords: Exactly ${settings.keywordsCount} keywords.
-3. Category: Choose from list.
-4. Output JSON ONLY. Do not include markdown code blocks (like \`\`\`json). Just the raw JSON object.
+---
+### 3. TITLING RULES (STRICT CHARACTER LIMITS)
+Do NOT start with "A photo of", "Image of", "3D render of". Start directly with the subject.
+
+**A. ADOBE STOCK TITLE:**
+*   **Max Length:** You must write exactly between ${adobeGenLimit - 10} and ${adobeGenLimit} characters.
+*   **Suffix:** Do NOT add the suffix yourself, I will add it. Just write the description.
+${isTransparent ? `*   **Structure:** [Main Subject] + [Pose/State] + [Angle/View]. (Example: "Red apple with green leaf fresh fruit")` : `*   **Structure:** [Main Subject] + [Action] + [Context/Environment] + [Mood/Lighting].`}
+
+**B. FREEPIK TITLE:**
+*   **Max Length:** You must write exactly between ${freepikGenLimit - 10} and ${freepikGenLimit} characters.
+*   **Suffix:** Do NOT add the suffix yourself, I will add it.
+*   **Style:** Concise, keyword-heavy.
+
+---
+### 4. KEYWORD HIERARCHY (STRICT COUNT: EXACTLY ${settings.keywordsCount})
+Provide exactly ${settings.keywordsCount} keywords. No more, no less.
+1.  **TIER 1 (Visuals):** The literal subject.
+2.  **TIER 2 (Action/State):** What is happening?
+3.  **TIER 3 (Context):** Environment (Photos only).
+4.  **TIER 4 (Concepts):** Abstract meanings.
+5.  **TIER 5 (Technical):** "Copy space" (if applicable). ${isTransparent ? 'Include "Cutout", "Isolated", "Transparent".' : ''}
+
+**Events:** ONLY tag holidays (Christmas, Halloween) if visually obvious.
+**Dates:** Do NOT use years (2024, 2025).
+
+---
+### 5. CATEGORY
+Select best fit from: ${ADOBE_CATEGORIES.join(", ")}
+
+---
+### OUTPUT
+Return ONLY the raw JSON object containing 'adobe_title', 'freepik_title', 'keywords', and 'category'.
 `;
 };
 
 // Utility to wait
 const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-async function callGroq(file: UploadedFile, settings: ControlSettings): Promise<MetaData> {
-  // Assuming environment variable for Groq if provider is selected
-  // Note: This logic path is now less prioritized as user requested "remove api system"
-  // but kept for compatibility if env var is present.
-  const groqKey = process.env.GROQ_API_KEY || ""; 
-  
-  if (!groqKey) throw new Error("Groq API Key not found in environment.");
-
-  // Groq Llama 3.2 Vision does not support video files directly
-  if (file.mimeType.startsWith('video')) {
-      throw new Error("Llama 3.2 (Groq) does not support video files. Please switch to Gemini in the header.");
-  }
-
-  let processedBase64 = file.base64;
-  let processedMimeType = file.mimeType;
-
-  // FALLBACK: Ensure MIME type is never empty
-  if (!processedMimeType || processedMimeType === 'undefined') {
-      processedMimeType = 'image/jpeg';
-  }
-
-  if (file.mimeType.startsWith('image/')) {
-      try {
-          const compressed = await compressImage(file.file, 1024, 0.7);
-          processedBase64 = compressed.base64;
-          processedMimeType = compressed.mimeType;
-      } catch (err) {
-          console.warn("Image compression failed, falling back to original:", err);
-      }
-  }
-
-  const prompt = PROMPT_TEMPLATE(settings, 'image');
-  
-  // NOTE: Rely on user input. Default to 11b if empty.
-  let modelToUse = settings.groqModel || "llama-3.2-11b-vision-preview";
-  
-  // Debug Log
-  console.log("Calling Groq API:", { model: modelToUse, mime: processedMimeType });
-
-  const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "Authorization": `Bearer ${groqKey.trim()}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify({
-      model: modelToUse,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: prompt },
-            {
-              type: "image_url",
-              image_url: {
-                url: `data:${processedMimeType};base64,${processedBase64}`
-              }
-            }
-          ]
-        }
-      ],
-      temperature: 0.2,
-    })
-  });
-
-  if (!response.ok) {
-    let msg = response.statusText;
-    try {
-        const errData = await response.json();
-        console.error("Groq API Full Error:", errData);
-        msg = errData.error?.message || msg;
+const sanitizeMetadata = (metadata: any, settings: ControlSettings): MetaData => {
+    let adobe_title = metadata.adobe_title || "";
+    let freepik_title = metadata.freepik_title || "";
+    let keywords = metadata.keywords || [];
+    
+    // --- SMART TITLE SANITIZATION ---
+    // This logic ensures strict adherence to the length limit set in settings
+    const cleanTitle = (t: string, maxLen: number) => {
+        if (!t) return "";
+        let clean = t.trim();
         
-        // Show the actual error to the user so they see the recommendation from Groq
-        if (JSON.stringify(errData).includes('decommissioned') || msg.includes('decommissioned')) {
-             throw new Error(`Groq Error: ${msg} (We recommend using Gemini Free)`);
+        // Remove Forbidden Words (Trademarks)
+        FORBIDDEN_WORDS.forEach(word => {
+            const regex = new RegExp(`\\b${word}\\b`, 'gi');
+            clean = clean.replace(regex, 'Generic Object');
+        });
+
+        // Remove filler start words (SEO optimization)
+        clean = clean.replace(/^(A |An |The )?((3d|3D) )?(render|illustration|image|photo|shot|view) of (a |an )?/i, "");
+        
+        if (settings.contentType === 'transparent') {
+            const suffix = " isolated on transparent background";
+            
+            // CLEAN TECHNICAL WORDS FROM TITLE (They belong in keywords)
+            // This prevents "Delivery Man PNG Cutout isolated on transparent..."
+            clean = clean.replace(/\b(png|jpg|jpeg|cutout|clipart|sticker|transparent|isolated|background)\b/gi, " ");
+            
+            // Clean up double spaces created by removal
+            clean = clean.replace(/\s+/g, ' ').trim();
+
+            // Clean up if AI added the suffix despite instructions
+            const bgRegex = /( isolated)? on (a )?(solid )?(black|white|dark|transparent) background/gi;
+            clean = clean.replace(bgRegex, "");
+            clean = clean.replace(/ isolated$/i, "");
+            clean = clean.trim();
+            
+            // Capitalize first letter
+            clean = clean.charAt(0).toUpperCase() + clean.slice(1);
+
+            // Calculate strictly available space
+            const availableSpace = maxLen - suffix.length;
+            
+            if (clean.length > availableSpace) {
+                // Hard Cut to fit limit, but try to respect word boundaries
+                let truncated = clean.substring(0, availableSpace);
+                const lastSpace = truncated.lastIndexOf(' ');
+                // If finding the last space removes too much (>20% of content), just cut hard
+                if (lastSpace > availableSpace * 0.8) {
+                    truncated = truncated.substring(0, lastSpace);
+                }
+                clean = truncated;
+            }
+            
+            // Always append suffix
+            clean = clean + suffix;
+        } else {
+            // Capitalize first letter
+            clean = clean.charAt(0).toUpperCase() + clean.slice(1);
+
+            // Standard truncation for non-transparent
+            if (clean.length > maxLen) {
+                let truncated = clean.substring(0, maxLen);
+                const lastSpace = truncated.lastIndexOf(' ');
+                if (lastSpace > maxLen * 0.8) {
+                    truncated = truncated.substring(0, lastSpace);
+                }
+                clean = truncated;
+            }
         }
-    } catch(e) {
-        if (e instanceof Error && e.message.includes('Groq Error')) throw e;
-        console.error("Groq API Non-JSON Error:", e);
+
+        clean = clean.replace(/\.+$/, ''); // Remove trailing periods
+        return clean;
+    };
+
+    // Apply the smart cleaning
+    adobe_title = cleanTitle(adobe_title, settings.adobeTitleLength);
+    freepik_title = cleanTitle(freepik_title, settings.freepikTitleLength);
+    
+    // --- KEYWORD SANITIZATION ---
+    // 1. Filter Forbidden
+    keywords = keywords.filter((k: string) => {
+        const lowerK = k.toLowerCase();
+        const isForbidden = FORBIDDEN_WORDS.some(badWord => lowerK.includes(badWord.toLowerCase()));
+        return !isForbidden;
+    });
+
+    // 2. Enforce Mandatory Keywords for PNGs
+    if (settings.contentType === 'transparent') {
+         const requiredPngKeywords = ["cutout", "isolated", "transparent", "background", "element", "object"];
+         requiredPngKeywords.forEach(req => {
+             if (!keywords.map(k => k.toLowerCase()).includes(req)) {
+                 keywords.push(req);
+             }
+         });
     }
     
-    // Direct Error Reporting - No Masking
-    throw new Error(`Groq API: ${msg}`);
-  }
-
-  const result = await response.json();
-  const content = result.choices[0].message.content;
-  
-  // CLEANUP: Remove markdown code blocks if present
-  const cleanContent = content.replace(/```json/g, '').replace(/```/g, '').trim();
-
-  try {
-    const parsed = JSON.parse(cleanContent);
-    return sanitizeMetadata(parsed, settings);
-  } catch (e) {
-    // Fallback: Try to find JSON object in text
-    const jsonMatch = content.match(/\{[\s\S]*\}/);
-    if (jsonMatch) return sanitizeMetadata(JSON.parse(jsonMatch[0]), settings);
-    throw new Error("Failed to parse AI response as JSON.");
-  }
-}
-
-const sanitizeMetadata = (metadata: MetaData, settings: ControlSettings): MetaData => {
-    let title = metadata.title || "";
-    if (title) {
-        title = title.trim();
-        if (settings.marketplace === 'adobe') {
-            if (title.endsWith('.')) title = title.slice(0, -1);
-        } else {
-            if (!title.endsWith('.')) title = title + '.';
-        }
+    // 3. STRICT LIMIT ENFORCEMENT
+    // Ensure we match the settings.keywordsCount EXACTLY (or as close as possible)
+    if (keywords.length > settings.keywordsCount) {
+        // Cut off excess keywords
+        keywords = keywords.slice(0, settings.keywordsCount);
+    } 
+    
+    // Fallback if too few (AI error)
+    if (keywords.length < 5) {
+        keywords.push("illustration", "graphic", "design", "vector", "element");
     }
-    return { ...metadata, title };
+
+    return { 
+        ...metadata, 
+        adobe_title, 
+        freepik_title, 
+        keywords 
+    };
 };
 
 export const extractMetadataStream = async (
@@ -224,15 +274,9 @@ export const extractMetadataStream = async (
   settings: ControlSettings,
   onChunk: (partial: Partial<MetaData>) => void
 ): Promise<MetaData> => {
-  if (settings.provider === 'groq') {
-    return await callGroq(file, settings);
-  }
-
-  // --- GOOGLE GEMINI LOGIC ---
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
-  // Updated to gemini-2.0-flash
-  const model = 'gemini-2.0-flash'; 
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const model = 'gemini-3-flash-preview'; 
   
   const imagePart = {
     inlineData: {
@@ -259,43 +303,39 @@ export const extractMetadataStream = async (
             },
         });
 
-        onChunk({ title: "Analyzing..." });
+        // Use a generic status update instead of a specific title
+        onChunk({ adobe_title: "Analyzing..." });
         
         const textResponse = response.text;
         if (!textResponse) {
             throw new Error("No response received from Gemini.");
         }
         
-        const finalMetadata: MetaData = JSON.parse(textResponse.trim());
-        return sanitizeMetadata(finalMetadata, settings);
+        const rawMetadata = JSON.parse(textResponse.trim());
+        return sanitizeMetadata(rawMetadata, settings);
 
     } catch (error: any) {
         console.error(`Gemini Attempt ${attempt + 1} failed:`, error);
         lastError = error;
         
-        // Handle Rate Limits (429) or Service Overload (503)
         const isRateLimit = error.message?.includes('429') || error.message?.includes('exhausted');
         const isServerBusy = error.message?.includes('503') || error.message?.includes('overloaded');
 
         if ((isRateLimit || isServerBusy) && attempt < maxRetries) {
-            // Exponential backoff: 2s, 4s, 8s
             const delayMs = Math.pow(2, attempt + 1) * 1000;
-            onChunk({ title: `Busy (Retrying in ${delayMs/1000}s)...` });
+            // Inform UI of retry
+            onChunk({ adobe_title: `Busy (Retrying in ${delayMs/1000}s)...` });
             await wait(delayMs);
             continue;
         }
-        
-        // Break loop for other errors
         break;
     }
   }
 
-  // If we exit the loop without returning, handle the last error
   if (lastError) {
       if (lastError.message.includes('SAFETY')) throw new Error("Content blocked due to safety policies.");
       if (lastError.message.includes('429')) throw new Error("Rate Limit Exceeded. Please pause for a minute.");
-      if (lastError.message.includes('API key') || lastError.message.includes('403')) throw new Error("Invalid Gemini API Key in Environment.");
-      if (lastError.message.includes('404')) throw new Error("Model not found. Please check your API key or Region.");
+      if (lastError.message.includes('API key') || lastError.message.includes('403')) throw new Error("Invalid API Key.");
       throw new Error(`Failed: ${lastError.message}`);
   }
 

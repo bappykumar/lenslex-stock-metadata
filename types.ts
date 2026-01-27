@@ -1,6 +1,5 @@
 
 export type Marketplace = 'adobe' | 'freepik';
-export type APIProvider = 'google' | 'groq';
 export type ContentType = 'photo' | 'transparent';
 
 export interface UploadedFile {
@@ -10,7 +9,8 @@ export interface UploadedFile {
 }
 
 export interface MetaData {
-  title?: string;
+  adobe_title?: string;    // Stored Adobe version
+  freepik_title?: string;  // Stored Freepik version
   description?: string;
   keywords?: string[];
   category?: string;
@@ -22,14 +22,12 @@ export interface FileWithMetadata {
   metadata?: MetaData;
   error?: string;
   isStreaming?: boolean;
-  lastProviderUsed?: APIProvider;
+  lastProviderUsed?: string;
 }
 
 export interface ControlSettings {
-    titleLength: number;
+    adobeTitleLength: number;   // Adjustable length for Adobe
+    freepikTitleLength: number; // Adjustable length for Freepik
     keywordsCount: number;
-    provider: APIProvider;
-    marketplace: Marketplace;
     contentType: ContentType;
-    groqModel: string;
 }
